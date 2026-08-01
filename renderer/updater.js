@@ -1,58 +1,105 @@
 const {ipcRenderer:updaterIpc}=require("electron");
 
+const updateCard=document.getElementById("updateCard");
 const cadenceVersion=document.getElementById("cadenceVersion");
+const updateStateIcon=document.getElementById("updateStateIcon");
+const updateStateLabel=document.getElementById("updateStateLabel");
+const updateLastChecked=document.getElementById("updateLastChecked");
 const updateStatus=document.getElementById("updateStatus");
 const updateProgress=document.getElementById("updateProgress");
 const updateProgressBar=document.getElementById("updateProgressBar");
+const updateProgressText=document.getElementById("updateProgressText");
 const checkForUpdates=document.getElementById("checkForUpdates");
 const updateAvailableModal=document.getElementById("updateAvailableModal");
 const updateReadyModal=document.getElementById("updateReadyModal");
+let dismissedVersion="";
+
+const statePresentation={
+    idle:{icon:"✦",label:"Ready when you are"},
+    development:{icon:"◇",label:"Installed builds only"},
+    checking:{icon:"↻",label:"Checking GitHub"},
+    current:{icon:"✓",label:"You’re up to date"},
+    available:{icon:"↓",label:"A new version is ready"},
+    downloading:{icon:"↓",label:"Bringing it home"},
+    downloaded:{icon:"✓",label:"Ready to restart"},
+    error:{icon:"!",label:"Couldn’t check just now"}
+};
 
 function closeUpdateModal(modal){
     modal.classList.add("hidden");
 }
 
-function setUpdateStatus(text,busy=false){
-    updateStatus.textContent=text;
-    checkForUpdates.disabled=busy;
-    checkForUpdates.textContent=busy ? "Checking…" : "Check for updates";
+function formatCheckedAt(value){
+    if(!value) return "Not checked yet";
+    const checked=new Date(value);
+    if(Number.isNaN(checked.getTime())) return "Checked recently";
+    return `Checked ${checked.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}`;
+}
+
+function showProgress(percent){
+    const safePercent=Math.max(0,Math.min(100,Number(percent) || 0));
+    updateProgress.classList.remove("hidden");
+    updateProgressText.classList.remove("hidden");
+    updateProgress.setAttribute("aria-hidden","false");
+    updateProgressBar.style.width=`${safePercent}%`;
+    updateProgressText.textContent=`${safePercent}%`;
+}
+
+function hideProgress(){
+    updateProgress.classList.add("hidden");
+    updateProgressText.classList.add("hidden");
+    updateProgress.setAttribute("aria-hidden","true");
+}
+
+function renderState(state){
+    const presentation=statePresentation[state.status] || statePresentation.idle;
+    updateCard.dataset.updateState=state.status;
+    cadenceVersion.textContent=`v${state.version}`;
+    updateStateIcon.textContent=presentation.icon;
+    updateStateLabel.textContent=presentation.label;
+    updateLastChecked.textContent=formatCheckedAt(state.checkedAt);
+    checkForUpdates.disabled=state.status==="checking" || state.status==="downloading";
+    checkForUpdates.innerHTML=state.status==="checking"
+        ? '<span class="update-spin" aria-hidden="true">↻</span> Checking…'
+        : '<span aria-hidden="true">↻</span> Check for updates';
+
+    if(state.status==="idle") updateStatus.textContent="Check for the newest features and gentle improvements.";
+    if(state.status==="development") updateStatus.textContent=state.message;
+    if(state.status==="checking") updateStatus.textContent="Looking for a newer version of Cadence…";
+    if(state.status==="current") updateStatus.textContent=state.message || "You have the newest version of Cadence.";
+    if(state.status==="available") updateStatus.textContent=`Version ${state.availableVersion} is available.`;
+    if(state.status==="downloading") updateStatus.textContent="Downloading safely in the background…";
+    if(state.status==="downloaded") updateStatus.textContent="The update is downloaded and ready to install.";
+    if(state.status==="error") updateStatus.textContent=state.message || "Cadence couldn't check for updates.";
+
+    if(state.status==="downloading") showProgress(state.percent);
+    else if(state.status==="downloaded") showProgress(100);
+    else hideProgress();
 }
 
 updaterIpc.on("updater-status",(event,state)=>{
-    cadenceVersion.textContent=`v${state.version}`;
+    renderState(state);
 
-    if(state.status==="idle"){
-        setUpdateStatus("Ready to check for updates.");
-    }else if(state.status==="development"){
-        setUpdateStatus(state.message);
-    }else if(state.status==="checking"){
-        setUpdateStatus("Looking for a newer version…",true);
-    }else if(state.status==="current"){
-        setUpdateStatus(state.message || "Cadence is up to date.");
-    }else if(state.status==="available"){
-        setUpdateStatus(`Version ${state.availableVersion} is available.`);
+    if(state.status==="available"){
         document.getElementById("updateAvailableMessage").textContent=
             `Cadence ${state.availableVersion} is available. Would you like to download it?`;
-        updateAvailableModal.classList.remove("hidden");
-    }else if(state.status==="downloading"){
-        const percent=Math.max(0,Math.min(100,state.percent || 0));
-        setUpdateStatus(`Downloading update… ${percent}%`,true);
-        updateProgress.classList.remove("hidden");
-        updateProgress.setAttribute("aria-hidden","false");
-        updateProgressBar.style.width=`${percent}%`;
-    }else if(state.status==="downloaded"){
-        setUpdateStatus("Update downloaded and ready to install.");
-        updateProgressBar.style.width="100%";
-        updateReadyModal.classList.remove("hidden");
-    }else if(state.status==="error"){
-        setUpdateStatus(state.message || "Cadence couldn't check for updates.");
-        updateProgress.classList.add("hidden");
-        updateProgress.setAttribute("aria-hidden","true");
+        document.getElementById("updateCurrentVersion").textContent=`v${state.version}`;
+        document.getElementById("updateNewVersion").textContent=`v${state.availableVersion}`;
+        if(dismissedVersion!==state.availableVersion){
+            updateAvailableModal.classList.remove("hidden");
+        }
     }
+    if(state.status==="downloaded") updateReadyModal.classList.remove("hidden");
 });
 
-checkForUpdates.addEventListener("click",()=>updaterIpc.send("check-for-updates"));
-document.getElementById("laterUpdate").addEventListener("click",()=>closeUpdateModal(updateAvailableModal));
+checkForUpdates.addEventListener("click",()=>{
+    dismissedVersion="";
+    updaterIpc.send("check-for-updates");
+});
+document.getElementById("laterUpdate").addEventListener("click",()=>{
+    dismissedVersion=document.getElementById("updateNewVersion").textContent.replace(/^v/,"");
+    closeUpdateModal(updateAvailableModal);
+});
 document.getElementById("downloadUpdate").addEventListener("click",()=>{
     closeUpdateModal(updateAvailableModal);
     updaterIpc.send("download-update");

@@ -39,6 +39,7 @@ let deliveredReminders=new Set();
 let reminderTimer=null;
 let updateTimer=null;
 let updateDownloaded=false;
+let lastUpdateCheck=null;
 
 autoUpdater.autoDownload=false;
 autoUpdater.autoInstallOnAppQuit=false;
@@ -48,6 +49,7 @@ function sendUpdaterStatus(status,details={}){
     win.webContents.send("updater-status",{
         status,
         version:app.getVersion(),
+        checkedAt:lastUpdateCheck,
         ...details
     });
 }
@@ -63,11 +65,14 @@ async function checkForCadenceUpdate(manual=false){
     }
 
     try{
+        lastUpdateCheck=new Date().toISOString();
         sendUpdaterStatus("checking",{manual});
         await autoUpdater.checkForUpdates();
     }catch(error){
+        console.error("Cadence update check failed:",error);
         sendUpdaterStatus("error",{
-            message:"Cadence couldn't reach the update service. Please try again later."
+            message:"Cadence couldn't reach GitHub. Check your connection and try again.",
+            errorCode:error?.code || "UPDATE_CHECK_FAILED"
         });
     }
 }
@@ -90,6 +95,7 @@ autoUpdater.on("update-downloaded",info=>{
 });
 
 autoUpdater.on("error",()=>{
+    console.error("Cadence updater reported an error.");
     sendUpdaterStatus("error",{
         message:"The update couldn't be completed. Your current Cadence installation is unchanged."
     });
@@ -756,7 +762,8 @@ app.whenReady().then(()=>{
     ipcMain.on("get-updater-status",event=>{
         event.sender.send("updater-status",{
             status:updateDownloaded ? "downloaded" : "idle",
-            version:app.getVersion()
+            version:app.getVersion(),
+            checkedAt:lastUpdateCheck
         });
     });
 

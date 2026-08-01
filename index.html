@@ -18,7 +18,7 @@
 
 <div class="widget">
 
-<div class="logo">
+<div class="logo" title="Drag Cadence" aria-label="Cadence window drag handle">
 CADENCE
 </div>
 
@@ -814,19 +814,28 @@ value="0">
 
 <!-- all settings here -->
 
-<section class="update-card">
+<section id="updateCard" class="update-card" data-update-state="idle">
+<div class="update-card-glow" aria-hidden="true"></div>
 <div class="update-card-heading">
+<div class="update-identity">
+<span id="updateStateIcon" class="update-state-icon" aria-hidden="true">✦</span>
 <div>
-<p class="schedule-eyebrow">Stay current</p>
+<p class="schedule-eyebrow">Cadence care</p>
 <h3>Updates</h3>
 </div>
-<span id="cadenceVersion">v—</span>
 </div>
-<p id="updateStatus" class="update-status" aria-live="polite">Ready to check for updates.</p>
+<span id="cadenceVersion" class="update-version">v—</span>
+</div>
+<div class="update-status-row">
+<strong id="updateStateLabel">Ready when you are</strong>
+<span id="updateLastChecked">Not checked yet</span>
+</div>
+<p id="updateStatus" class="update-status" aria-live="polite">Check for the newest features and gentle improvements.</p>
 <div id="updateProgress" class="update-progress hidden" aria-hidden="true">
 <div id="updateProgressBar"></div>
 </div>
-<button id="checkForUpdates" class="check-update-button" type="button">Check for updates</button>
+<div id="updateProgressText" class="update-progress-text hidden">0%</div>
+<button id="checkForUpdates" class="check-update-button" type="button"><span aria-hidden="true">↻</span> Check for updates</button>
 </section>
 
 
@@ -848,6 +857,7 @@ Hard Reset
 <p class="schedule-eyebrow">A fresh cadence</p>
 <h3 id="updateAvailableTitle">An update is ready</h3>
 <p id="updateAvailableMessage">A newer version is available. Would you like to download it?</p>
+<div class="update-version-route"><span id="updateCurrentVersion">v—</span><i>→</i><strong id="updateNewVersion">v—</strong></div>
 <div class="cadence-modal-actions">
 <button id="laterUpdate" type="button">Later</button>
 <button id="downloadUpdate" class="cadence-update-action" type="button">Download update</button>
