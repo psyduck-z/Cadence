@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Cadence</title>
+
+<link rel="stylesheet" href="renderer/style.css">
+
+</head>
+
+
+<body>
+
+
+<div class="widget">
+
+<div class="logo">
+CADENCE
+</div>
+
+<section class="weather-card" aria-live="polite">
+<div class="weather-icon" id="weatherIcon">☁️</div>
+<div class="weather-copy">
+<span id="weatherLocation">Finding your weather…</span>
+<strong id="weatherTemperature">--°</strong>
+<small id="weatherDescription">A moment, please</small>
+</div>
+<button id="refreshWeather" class="weather-refresh" type="button" aria-label="Refresh weather">↻</button>
+</section>
+
+
+<div class="tabs">
+
+<button class="tab active" data-page="focus">
+Focus
+</button>
+
+
+<button class="tab" data-page="schedule">
+To-Do List
+</button>
+
+
+<button class="tab" data-page="timetable">
+Schedule
+</button>
+
+<button class="tab" data-page="music">
+Music
+</button>
+
+
+<button class="tab" data-page="settings">
+Settings
+</button>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="page focus-page">
+
+<div class="subtabs">
+
+
+<button class="subtab active" data-mode="focus">
+Focus
+</button>
+
+
+<button class="subtab" data-mode="shortBreak">
+Short Break
+</button>
+
+
+<button class="subtab" data-mode="longBreak">
+Long Break
+</button>
+
+
+<button class="subtab" data-mode="custom">
+Custom
+</button>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="progress">
+
+
+<svg viewBox="0 0 250 250">
+
+
+<circle
+class="bg"
+cx="125"
+cy="125"
+r="100">
+</circle>
+
+
+<circle
+id="progress"
+class="fg"
+cx="125"
+cy="125"
+r="100">
+</circle>
+
+
+</svg>
+
+
+
+
+
+<div class="timer">
+
+
+<div class="timer-content">
+
+
+<div id="time" class="time">
+25:00
+</div>
+
+
+<div id="label" class="label">
+Focus Session
+</div>
+
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+<div id="customLiveControls" class="custom-controls hidden">
+
+
+<label>
+Minutes
+</label>
+
+
+<div class="slider-row">
+
+<input
+id="liveCustomSlider"
+type="range"
+min="0"
+max="120"
+value="30">
+
+<input
+id="liveCustomInput"
+type="number"
+min="0"
+max="120"
+value="30">
+
+</div>
+
+
+
+<label>
+Seconds
+</label>
+
+
+<div class="slider-row">
+
+<input
+id="liveSecondsSlider"
+type="range"
+min="0"
+max="59"
+value="0">
+
+<input
+id="liveSecondsInput"
+type="number"
+min="0"
+max="59"
+value="0">
+
+</div>
+
+
+</div>
+
+<div class="controls">
+
+
+<button id="start">
+Start
+</button>
+
+
+<button id="reset">
+Reset
+</button>
+
+
+</div>
+
+<section class="focus-sound-card">
+<div>
+<span>Focus music</span>
+<strong id="focusSoundName">Choose music in the Music tab</strong>
+</div>
+<div class="focus-sound-actions">
+<button id="focusSoundPrevious" class="sound-toggle sound-next" type="button" aria-label="Play previous song">◀▮</button>
+<button id="focusSoundToggle" class="sound-toggle" type="button" aria-label="Play focus sound">▶</button>
+<button id="focusSoundNext" class="sound-toggle sound-next" type="button" aria-label="Play next song">▮▶</button>
+</div>
+</section>
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="page schedule-page hidden">
+
+<div id="scheduleDayTabs" class="schedule-day-tabs" role="tablist" aria-label="Days of the week"></div>
+
+<div class="schedule-heading">
+<div>
+<p id="selectedDayLabel" class="schedule-eyebrow">Today</p>
+<h2 id="selectedDayHeading">Monday</h2>
+<p id="nextActivity" class="schedule-summary">A clear day ahead</p>
+</div>
+<button id="newActivityButton" class="schedule-add" type="button" aria-label="Add a reminder">
+<span>+</span> Add
+</button>
+</div>
+
+
+<form id="activityForm" class="schedule-form hidden">
+
+<input id="activityId" type="hidden">
+
+<label>
+What do you want to remember?
+<input
+id="activityName"
+type="text"
+maxlength="60"
+placeholder="e.g. Send the project update"
+required>
+</label>
+
+<label>
+Note <span class="optional-text">optional</span>
+<input
+id="activityNotes"
+type="text"
+maxlength="120"
+placeholder="Add a little context">
+</label>
+
+<label>
+Priority
+<select id="activityPriority">
+<option value="high">High</option>
+<option value="medium" selected>Medium</option>
+<option value="low">Low</option>
+</select>
+</label>
+
+<div class="reminder-setting">
+<label class="checkbox-row schedule-auto-start">
+<input id="activityReminder" type="checkbox">
+Remind me
+</label>
+<label id="reminderTimeLabel" class="reminder-time-label hidden">
+At
+<input id="activityTime" type="time">
+</label>
+</div>
+
+<p id="activityFormError" class="form-error" aria-live="polite"></p>
+
+<div class="schedule-form-actions">
+<button id="cancelActivityButton" type="button">Cancel</button>
+<button class="primary-action" type="submit">Save</button>
+</div>
+
+</form>
+
+<div id="daySchedule" class="day-schedule"></div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="page timetable-page hidden">
+
+<div class="timetable-heading">
+<div>
+<p class="schedule-eyebrow">Weekly map</p>
+<h2>Schedule</h2>
+<p class="schedule-summary">Plan every part of your week</p>
+</div>
+
+<div class="timetable-heading-actions">
+<button id="addAlternateWeek" class="schedule-add" type="button">
+<span>+</span> Week B
+</button>
+<button id="clearTimetableWeek" class="schedule-add timetable-clear-week" type="button">
+Clear A
+</button>
+<button id="addTimetableEvent" class="schedule-add timetable-add-event" type="button">
+<span>+</span> Event
+</button>
+</div>
+</div>
+
+<div id="timetableWeekTabs" class="timetable-week-tabs" role="tablist" aria-label="Timetable week"></div>
+
+<form id="timetableEventForm" class="schedule-form timetable-event-form hidden">
+<input id="timetableEventId" type="hidden">
+
+<label>
+Event
+<input id="timetableEventName" type="text" maxlength="50" placeholder="e.g. Tennis" required>
+</label>
+
+<div class="schedule-form-row">
+<label>
+Day
+<select id="timetableEventDay">
+<option value="0">Monday</option>
+<option value="1">Tuesday</option>
+<option value="2">Wednesday</option>
+<option value="3">Thursday</option>
+<option value="4">Friday</option>
+<option value="5">Saturday</option>
+<option value="6">Sunday</option>
+</select>
+</label>
+<label>
+Colour
+<select id="timetableEventColor">
+<option value="mint">Mint</option>
+<option value="blue">Blue</option>
+<option value="amber">Amber</option>
+<option value="lilac">Lilac</option>
+<option value="rose">Rose</option>
+</select>
+</label>
+</div>
+
+<div class="schedule-form-row">
+<label>
+Starts
+<input id="timetableEventStart" type="time" value="06:00" required>
+</label>
+<label>
+Ends
+<input id="timetableEventEnd" type="time" value="08:00" required>
+</label>
+</div>
+
+<div class="reminder-setting">
+<label class="checkbox-row schedule-auto-start">
+<input id="timetableEventReminder" type="checkbox">
+Remind me when it starts
+</label>
+</div>
+
+<p id="timetableFormError" class="form-error" aria-live="polite"></p>
+
+<div class="schedule-form-actions">
+<button id="deleteTimetableEvent" class="timetable-delete hidden" type="button">Delete</button>
+<button id="cancelTimetableEvent" type="button">Cancel</button>
+<button class="primary-action" type="submit">Save event</button>
+</div>
+</form>
+
+<div id="timetableGrid" class="timetable-grid-scroll"></div>
+
+</div>
+
+
+<div id="clearWeekModal" class="cadence-modal hidden" role="dialog" aria-modal="true" aria-labelledby="clearWeekModalTitle">
+<div class="cadence-modal-card">
+<div class="cadence-modal-icon">☕</div>
+<p class="schedule-eyebrow">Just checking</p>
+<h3 id="clearWeekModalTitle">Clear Week A?</h3>
+<p id="clearWeekModalMessage">Every event in this week will be removed.</p>
+<div class="cadence-modal-actions">
+<button id="cancelClearWeek" type="button">Keep my week</button>
+<button id="confirmClearWeek" class="cadence-danger-action" type="button">Clear Week A</button>
+</div>
+</div>
+</div>
+
+
+<div id="removeWeekBModal" class="cadence-modal hidden" role="dialog" aria-modal="true" aria-labelledby="removeWeekBModalTitle">
+<div class="cadence-modal-card">
+<div class="cadence-modal-icon">📅</div>
+<p class="schedule-eyebrow">Just checking</p>
+<h3 id="removeWeekBModalTitle">Remove Week B?</h3>
+<p id="removeWeekBModalMessage">Every event in Week B will be permanently removed.</p>
+<div class="cadence-modal-actions">
+<button id="cancelRemoveWeekB" type="button">Keep Week B</button>
+<button id="confirmRemoveWeekB" class="cadence-danger-action" type="button">Remove Week B</button>
+</div>
+</div>
+</div>
+
+
+<div id="removeMusicModal" class="cadence-modal hidden" role="dialog" aria-modal="true" aria-labelledby="removeMusicModalTitle">
+<div class="cadence-modal-card">
+<div class="cadence-modal-icon">🎧</div>
+<p class="schedule-eyebrow">Just checking</p>
+<h3 id="removeMusicModalTitle">Remove this song?</h3>
+<p id="removeMusicModalMessage">It will leave your Cadence library, but the original audio file will stay safe.</p>
+<div class="cadence-modal-actions">
+<button id="cancelRemoveMusic" type="button">Keep my song</button>
+<button id="confirmRemoveMusic" class="cadence-danger-action" type="button">Remove song</button>
+</div>
+</div>
+</div>
+
+
+
+
+
+<div class="page music-page hidden">
+<div class="music-heading">
+<p class="schedule-eyebrow">Your listening room</p>
+<h2>Music</h2>
+<p>Your songs, your playlists, your pace.</p>
+</div>
+
+<div class="music-subtabs" role="tablist" aria-label="Music library">
+<button class="music-subtab active" type="button" data-music-view="songs" role="tab" aria-selected="true">Songs</button>
+<button class="music-subtab" type="button" data-music-view="playlists" role="tab" aria-selected="false">Playlists</button>
+</div>
+
+<div class="now-playing-card">
+<div id="musicArtwork" class="music-artwork">♫</div>
+<div class="now-playing-copy">
+<small>Now playing</small>
+<strong id="musicNowPlaying">Nothing selected</strong>
+<span id="musicNowPlayingMood">Choose something from your library</span>
+</div>
+<button id="musicPlayToggle" class="music-main-play" type="button" aria-label="Play music">▶</button>
+</div>
+
+<label class="music-volume">
+<span>Volume</span>
+<input id="musicVolume" type="range" min="0" max="100" value="38">
+</label>
+
+<section id="songsMusicView" class="music-library-view">
+<div class="custom-music-heading">
+<div><strong>Your songs</strong><small>MP3 files stay on this device.</small></div>
+<label class="add-music-button" for="customMusicFiles">＋ Add songs</label>
+<input id="customMusicFiles" type="file" accept=".mp3,audio/mpeg" multiple hidden>
+</div>
+<div id="customMusicList" class="custom-music-list">
+<p id="customMusicEmpty">Your chosen songs will appear here.</p>
+</div>
+</section>
+
+<section id="playlistsMusicView" class="music-library-view hidden">
+<div class="custom-music-heading">
+<div><strong>Your playlists</strong><small>Group songs for different moods.</small></div>
+<button id="newPlaylistButton" class="add-music-button" type="button">＋ New playlist</button>
+</div>
+
+<form id="playlistForm" class="playlist-form hidden">
+<input id="playlistId" type="hidden">
+<label>
+Playlist name
+<input id="playlistName" type="text" maxlength="45" placeholder="e.g. Deep study" required>
+</label>
+<div>
+<span class="playlist-form-label">Songs from your library</span>
+<div id="playlistSongChoices" class="playlist-song-choices"></div>
+</div>
+<label class="playlist-upload" for="playlistMusicFiles">
+<span>＋ Add other MP3 files</span>
+<small>They will also be added to Songs.</small>
+</label>
+<input id="playlistMusicFiles" type="file" accept=".mp3,audio/mpeg" multiple hidden>
+<p id="playlistUploadSummary" class="playlist-upload-summary"></p>
+<p id="playlistFormError" class="form-error" aria-live="polite"></p>
+<div class="playlist-form-actions">
+<button id="cancelPlaylist" type="button">Cancel</button>
+<button class="primary-action" type="submit">Save playlist</button>
+</div>
+</form>
+
+<div id="playlistList" class="playlist-list">
+<p id="playlistEmpty">Create a playlist when you want a longer focus mix.</p>
+</div>
+</section>
+</div>
+
+
+<div class="page settings-page hidden">
+
+
+<h2>
+Settings
+</h2>
+
+<section class="appearance-card">
+<div class="appearance-heading">
+<div>
+<p class="schedule-eyebrow">Personal atmosphere</p>
+<h3>Appearance</h3>
+</div>
+<span id="activeThemeName">Mint</span>
+</div>
+
+<div id="themeChoices" class="theme-choices" role="radiogroup" aria-label="Cadence theme">
+<button class="theme-choice active" type="button" data-theme-choice="mint" role="radio" aria-checked="true"><i class="theme-swatch swatch-mint"></i><span>Mint</span></button>
+<button class="theme-choice" type="button" data-theme-choice="blue" role="radio" aria-checked="false"><i class="theme-swatch swatch-blue"></i><span>Blue</span></button>
+<button class="theme-choice" type="button" data-theme-choice="amber" role="radio" aria-checked="false"><i class="theme-swatch swatch-amber"></i><span>Amber</span></button>
+<button class="theme-choice" type="button" data-theme-choice="lilac" role="radio" aria-checked="false"><i class="theme-swatch swatch-lilac"></i><span>Lilac</span></button>
+<button class="theme-choice" type="button" data-theme-choice="rose" role="radio" aria-checked="false"><i class="theme-swatch swatch-rose"></i><span>Rose</span></button>
+<button class="theme-choice metallic-choice" type="button" data-theme-choice="metallic" role="radio" aria-checked="false"><i class="theme-swatch swatch-metallic"></i><span>Sleek Metallic</span></button>
+</div>
+
+<label class="weather-theme-toggle">
+<span class="weather-theme-copy">
+<strong>Follow the weather</strong>
+<small>Let rain, sun, clouds and snow shape the background.</small>
+</span>
+<input id="followWeatherTheme" type="checkbox">
+</label>
+
+<div class="window-behaviour-setting transparency-setting">
+<div class="window-setting-copy">
+<strong>Transparency</strong>
+<small>Change how solid the whole widget appears.</small>
+</div>
+<div class="transparency-control">
+<input id="widgetTransparency" type="range" min="35" max="100" value="100" data-wheel-disabled="true" aria-label="Widget transparency">
+<output id="widgetTransparencyValue" for="widgetTransparency">100%</output>
+</div>
+</div>
+
+<label class="window-behaviour-setting always-on-top-setting">
+<span class="window-setting-copy">
+<strong>Stay above other windows</strong>
+<small>Keep Cadence visible over browsers and other apps.</small>
+</span>
+<input id="alwaysOnTopToggle" type="checkbox">
+</label>
+
+</section>
+
+
+
+
+
+<div class="settings-card">
+
+
+
+
+
+<div class="setting">
+
+<label>
+
+Focus Duration
+
+<span class="default-text">
+Default: 25 minutes
+</span>
+
+</label>
+
+
+<div class="slider-row">
+
+
+<input
+id="focusSlider"
+type="range"
+min="0"
+max="120"
+value="25">
+
+
+<input
+id="focusInput"
+type="number"
+min="0"
+value="25">
+
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="setting">
+
+<label>
+
+Short Break Duration
+
+<span class="default-text">
+Default: 5 minutes
+</span>
+
+</label>
+
+
+<div class="slider-row">
+
+
+<input
+id="shortSlider"
+type="range"
+min="0"
+max="120"
+value="5">
+
+
+<input
+id="shortInput"
+type="number"
+min="0"
+value="5">
+
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="setting">
+
+<label>
+
+Long Break Duration
+
+<span class="default-text">
+Default: 15 minutes
+</span>
+
+</label>
+
+
+<div class="slider-row">
+
+
+<input
+id="longSlider"
+type="range"
+min="0"
+max="120"
+value="15">
+
+
+<input
+id="longInput"
+type="number"
+min="0"
+value="15">
+
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="setting">
+
+<label>
+Custom Timer
+</label>
+
+
+<label class="checkbox-row">
+
+<input
+id="customAskToggle"
+type="checkbox"
+checked>
+
+Ask for duration every time
+
+</label>
+
+
+
+<div id="customPresetContainer">
+
+
+<label>
+Default Minutes
+</label>
+
+
+<div class="slider-row">
+
+
+<input
+id="customSlider"
+type="range"
+min="0"
+max="120"
+value="30">
+
+
+<input
+id="customInput"
+type="number"
+min="0"
+max="120"
+value="30">
+
+
+</div>
+
+<label>
+Default Seconds
+</label>
+
+
+<div class="slider-row">
+
+
+<input
+id="customSecondsSlider"
+type="range"
+min="0"
+max="59"
+value="0">
+
+
+<input
+id="customSecondsInput"
+type="number"
+min="0"
+max="59"
+value="0">
+
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+</div>
+
+
+<!-- all settings here -->
+
+
+<button id="resetDefaults" class="reset-defaults">
+
+Reset All To Default
+
+</button>
+
+<button id="openHardReset" class="hard-reset-button" type="button">
+Hard Reset
+</button>
+
+</div>
+
+<div id="hardResetModal" class="cadence-modal hidden" role="dialog" aria-modal="true" aria-labelledby="hardResetModalTitle">
+<div class="cadence-modal-card hard-reset-card">
+<div class="cadence-modal-icon">↺</div>
+<p class="schedule-eyebrow">Factory reset</p>
+<h3 id="hardResetModalTitle">Start Cadence over?</h3>
+<p>This permanently removes every task, schedule, playlist, preference and saved setting from Cadence.</p>
+<label class="hard-reset-confirmation">
+Type <strong>hard reset</strong> to continue
+<input id="hardResetPhrase" type="text" autocomplete="off" spellcheck="false" placeholder="hard reset">
+</label>
+<p id="hardResetError" class="form-error" aria-live="polite"></p>
+<div class="cadence-modal-actions">
+<button id="cancelHardReset" type="button">Keep everything</button>
+<button id="confirmHardReset" class="cadence-danger-action" type="button" disabled>Hard Reset</button>
+</div>
+</div>
+</div>
+
+<div id="alwaysOnTopModal" class="cadence-modal hidden" role="dialog" aria-modal="true" aria-labelledby="alwaysOnTopModalTitle">
+<div class="cadence-modal-card">
+<div class="cadence-modal-icon">⌃</div>
+<p class="schedule-eyebrow">Window behaviour</p>
+<h3 id="alwaysOnTopModalTitle">Keep Cadence above everything?</h3>
+<p>Cadence will remain visible over browsers and other windows until you turn this setting off.</p>
+<div class="cadence-modal-actions">
+<button id="cancelAlwaysOnTop" type="button">Leave it behind</button>
+<button id="confirmAlwaysOnTop" type="button">Keep it above</button>
+</div>
+</div>
+</div>
+
+<div id="resetDefaultsModal" class="cadence-modal hidden" role="dialog" aria-modal="true" aria-labelledby="resetDefaultsModalTitle">
+<div class="cadence-modal-card">
+<div class="cadence-modal-icon">↻</div>
+<p class="schedule-eyebrow">Just checking</p>
+<h3 id="resetDefaultsModalTitle">Reset your settings?</h3>
+<p>Timer durations, appearance, transparency and window behaviour will return to their defaults. Your tasks, schedules and music will stay safe.</p>
+<div class="cadence-modal-actions">
+<button id="cancelResetDefaults" type="button">Keep my settings</button>
+<button id="confirmResetDefaults" type="button">Reset settings</button>
+</div>
+</div>
+</div>
+
+
+</div>
+
+
+
+
+
+</div>
+
+
+
+
+
+<script src="renderer/app.js"></script>
+<script src="renderer/schedule.js"></script>
+<script src="renderer/timetable.js"></script>
+<script src="renderer/comfort.js"></script>
+
+
+</body>
+
+
+</html>
