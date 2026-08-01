@@ -814,6 +814,21 @@ value="0">
 
 <!-- all settings here -->
 
+<section class="update-card">
+<div class="update-card-heading">
+<div>
+<p class="schedule-eyebrow">Stay current</p>
+<h3>Updates</h3>
+</div>
+<span id="cadenceVersion">v—</span>
+</div>
+<p id="updateStatus" class="update-status" aria-live="polite">Ready to check for updates.</p>
+<div id="updateProgress" class="update-progress hidden" aria-hidden="true">
+<div id="updateProgressBar"></div>
+</div>
+<button id="checkForUpdates" class="check-update-button" type="button">Check for updates</button>
+</section>
+
 
 <button id="resetDefaults" class="reset-defaults">
 
@@ -825,6 +840,32 @@ Reset All To Default
 Hard Reset
 </button>
 
+</div>
+
+<div id="updateAvailableModal" class="cadence-modal hidden" role="dialog" aria-modal="true" aria-labelledby="updateAvailableTitle">
+<div class="cadence-modal-card">
+<div class="cadence-modal-icon">✦</div>
+<p class="schedule-eyebrow">A fresh cadence</p>
+<h3 id="updateAvailableTitle">An update is ready</h3>
+<p id="updateAvailableMessage">A newer version is available. Would you like to download it?</p>
+<div class="cadence-modal-actions">
+<button id="laterUpdate" type="button">Later</button>
+<button id="downloadUpdate" class="cadence-update-action" type="button">Download update</button>
+</div>
+</div>
+</div>
+
+<div id="updateReadyModal" class="cadence-modal hidden" role="dialog" aria-modal="true" aria-labelledby="updateReadyTitle">
+<div class="cadence-modal-card">
+<div class="cadence-modal-icon">☕</div>
+<p class="schedule-eyebrow">Update downloaded</p>
+<h3 id="updateReadyTitle">Restart Cadence now?</h3>
+<p>The update is safely downloaded. Cadence will briefly close, install it, and open again.</p>
+<div class="cadence-modal-actions">
+<button id="laterRestart" type="button">Later</button>
+<button id="installUpdate" class="cadence-update-action" type="button">Restart and update</button>
+</div>
+</div>
 </div>
 
 <div id="hardResetModal" class="cadence-modal hidden" role="dialog" aria-modal="true" aria-labelledby="hardResetModalTitle">
@@ -888,6 +929,7 @@ Type <strong>hard reset</strong> to continue
 <script src="renderer/schedule.js"></script>
 <script src="renderer/timetable.js"></script>
 <script src="renderer/comfort.js"></script>
+<script src="renderer/updater.js"></script>
 
 
 </body>

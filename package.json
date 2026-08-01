@@ -1,6 +1,6 @@
 {
   "name": "cadence",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A cozy, focused desktop companion.",
   "main": "main.js",
   "scripts": {
@@ -18,6 +18,12 @@
   "build": {
     "appId": "com.cadence.widget",
     "productName": "Cadence",
+    "publish": {
+      "provider": "github",
+      "owner": "pysduck-z",
+      "repo": "Cadence",
+      "releaseType": "release"
+    },
     "asar": true,
     "directories": {
       "output": "dist"
@@ -43,5 +49,8 @@
       "runAfterFinish": true,
       "artifactName": "Cadence-Setup-${version}.${ext}"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

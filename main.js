@@ -10,6 +10,7 @@ const {
 
 const fs = require("fs");
 const path = require("path");
+const {autoUpdater} = require("electron-updater");
 
 
 let win;
@@ -36,6 +37,63 @@ let timetableReminderState={
 };
 let deliveredReminders=new Set();
 let reminderTimer=null;
+let updateTimer=null;
+let updateDownloaded=false;
+
+autoUpdater.autoDownload=false;
+autoUpdater.autoInstallOnAppQuit=false;
+
+function sendUpdaterStatus(status,details={}){
+    if(!win || win.isDestroyed() || win.webContents.isDestroyed()) return;
+    win.webContents.send("updater-status",{
+        status,
+        version:app.getVersion(),
+        ...details
+    });
+}
+
+async function checkForCadenceUpdate(manual=false){
+    if(!app.isPackaged){
+        if(manual){
+            sendUpdaterStatus("development",{
+                message:"Update checks work in the installed version of Cadence."
+            });
+        }
+        return;
+    }
+
+    try{
+        sendUpdaterStatus("checking",{manual});
+        await autoUpdater.checkForUpdates();
+    }catch(error){
+        sendUpdaterStatus("error",{
+            message:"Cadence couldn't reach the update service. Please try again later."
+        });
+    }
+}
+
+autoUpdater.on("update-available",info=>{
+    sendUpdaterStatus("available",{availableVersion:info.version});
+});
+
+autoUpdater.on("update-not-available",()=>{
+    sendUpdaterStatus("current",{message:"Cadence is up to date."});
+});
+
+autoUpdater.on("download-progress",progress=>{
+    sendUpdaterStatus("downloading",{percent:Math.round(progress.percent || 0)});
+});
+
+autoUpdater.on("update-downloaded",info=>{
+    updateDownloaded=true;
+    sendUpdaterStatus("downloaded",{availableVersion:info.version});
+});
+
+autoUpdater.on("error",()=>{
+    sendUpdaterStatus("error",{
+        message:"The update couldn't be completed. Your current Cadence installation is unchanged."
+    });
+});
 
 
 const defaultSettings = {
@@ -675,6 +733,33 @@ app.whenReady().then(()=>{
         win.setAlwaysOnTop(Boolean(enabled),"floating");
     });
 
+    ipcMain.on("check-for-updates",()=>checkForCadenceUpdate(true));
+
+    ipcMain.on("download-update",async()=>{
+        if(!app.isPackaged) return;
+        try{
+            sendUpdaterStatus("downloading",{percent:0});
+            await autoUpdater.downloadUpdate();
+        }catch(error){
+            sendUpdaterStatus("error",{
+                message:"The update couldn't be downloaded. Please try again later."
+            });
+        }
+    });
+
+    ipcMain.on("install-update",()=>{
+        if(!updateDownloaded) return;
+        isQuitting=true;
+        autoUpdater.quitAndInstall(false,true);
+    });
+
+    ipcMain.on("get-updater-status",event=>{
+        event.sender.send("updater-status",{
+            status:updateDownloaded ? "downloaded" : "idle",
+            version:app.getVersion()
+        });
+    });
+
     const launchSettings={openAtLogin:true,args:["--hidden"]};
     if(process.platform === "win32" && !app.isPackaged){
         launchSettings.path=process.execPath;
@@ -688,6 +773,11 @@ app.whenReady().then(()=>{
     reminderTimer=setInterval(checkScheduledReminders,15000);
     checkScheduledReminders();
 
+    if(app.isPackaged){
+        setTimeout(()=>checkForCadenceUpdate(false),12000);
+        updateTimer=setInterval(()=>checkForCadenceUpdate(false),6*60*60*1000);
+    }
+
 });
 }
 
@@ -696,6 +786,9 @@ app.on("before-quit",()=>{
     isQuitting=true;
     if(reminderTimer){
         clearInterval(reminderTimer);
+    }
+    if(updateTimer){
+        clearInterval(updateTimer);
     }
 
 });
