@@ -29,7 +29,7 @@ CADENCE
 <strong id="weatherTemperature">--°</strong>
 <small id="weatherDescription">A moment, please</small>
 </div>
-<button id="refreshWeather" class="weather-refresh" type="button" aria-label="Refresh weather">↻</button>
+<button id="refreshWeather" class="weather-refresh" type="button" aria-label="Refresh weather now" title="Refresh weather now · Automatically updates every 5 minutes">↻</button>
 </section>
 
 
@@ -557,12 +557,12 @@ Playlist name
 <p id="weatherPageDescription">Gathering the atmosphere</p>
 </div>
 </div>
-<button id="weatherPageRefresh" class="weather-page-refresh" type="button" aria-label="Refresh detailed weather">↻</button>
+<button id="weatherPageRefresh" class="weather-page-refresh" type="button" aria-label="Refresh detailed weather now" title="Refresh weather now · Automatically updates every 5 minutes">↻</button>
 </header>
 
 <div class="weather-comfort-line">
 <span id="weatherFeelsLike">Feels like --°</span>
-<span id="weatherUpdatedAt">Not updated yet</span>
+<span id="weatherUpdatedAt" class="weather-update-status" aria-live="polite">Not updated yet · Auto-refreshes every 5 min</span>
 </div>
 
 <section class="weather-metrics" aria-label="Current weather details">

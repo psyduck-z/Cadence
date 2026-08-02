@@ -262,6 +262,33 @@ function clampRainChance(value){
     return Math.min(99,Math.max(1,Math.round(Number.isFinite(chance) ? chance : 1)));
 }
 
+const weatherRefreshInterval=5*60*1000;
+let weatherRequest=null;
+let hasWeatherData=false;
+
+function weatherTimestamp(data,saved=false){
+    const updatedAt=new Date(data?.updatedAt);
+    const time=Number.isNaN(updatedAt.getTime()) ? "an earlier time" : updatedAt.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+    return saved ? `Saved weather from ${time} · Offline` : `Updated ${time} · Auto-refreshes every 5 min`;
+}
+
+function readWeatherCache(){
+    try{
+        const cached=JSON.parse(localStorage.getItem("cadence-weather-cache") || "null");
+        return cached?.weather?.current ? cached : null;
+    }catch(error){
+        return null;
+    }
+}
+
+function setWeatherLoading(loading){
+    document.querySelectorAll("#refreshWeather,#weatherPageRefresh").forEach(button=>{
+        button.classList.toggle("refreshing",loading);
+        button.disabled=loading;
+        button.setAttribute("aria-busy",String(loading));
+    });
+}
+
 function applyWeather(data,saved=false){
     const current=data.weather.current;
     const details=weatherCodes[current.weather_code] || ["🌤️","Weather nearby"];
@@ -275,7 +302,7 @@ function applyWeather(data,saved=false){
     weatherValue("weatherPageDescription",`${details[1]}${saved ? " · saved" : ""}`);
     weatherValue("weatherPageLocation",data.location);
     weatherValue("weatherFeelsLike",`Feels like ${Math.round(current.apparent_temperature)}°`);
-    weatherValue("weatherUpdatedAt",saved ? "Showing saved weather" : `Updated ${new Date(data.updatedAt).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}`);
+    weatherValue("weatherUpdatedAt",weatherTimestamp(data,saved));
     weatherValue("weatherHumidity",`${Math.round(current.relative_humidity_2m)}%`);
     weatherValue("weatherWind",`${Math.round(current.wind_speed_10m)} km/h`);
     weatherValue("weatherWindDetail",`${windDirection(current.wind_direction_10m)} · gusts ${Math.round(current.wind_gusts_10m)} km/h`);
@@ -298,13 +325,20 @@ function applyWeather(data,saved=false){
     if(badge) badge.dataset.level=(aqiLabel.split(" ")[0] || "unknown").toLowerCase();
     renderForecast(data.weather);
     setWeatherAtmosphere(current.weather_code);
+    hasWeatherData=true;
 }
 
-async function loadWeather(){
-    weatherValue("weatherLocation","Finding your weather…");
-    weatherValue("weatherPageLocation","Finding your location…");
-    document.querySelectorAll("#refreshWeather,#weatherPageRefresh").forEach(button=>button.classList.add("refreshing"));
-    try{
+function loadWeather({background=false}={}){
+    if(weatherRequest) return weatherRequest;
+    if(!background || !hasWeatherData){
+        weatherValue("weatherLocation","Finding your weather…");
+        weatherValue("weatherPageLocation","Finding your location…");
+    }else{
+        weatherValue("weatherUpdatedAt","Refreshing weather…");
+    }
+    setWeatherLoading(true);
+    weatherRequest=(async()=>{
+      try{
         let latitude;
         let longitude;
         let detectedPlace="";
@@ -332,9 +366,9 @@ async function loadWeather(){
         const data={weather,air,location:detectedPlace || timezonePlace || "Right where you are",updatedAt:new Date().toISOString()};
         applyWeather(data);
         localStorage.setItem("cadence-weather-cache",JSON.stringify(data));
-    }catch(error){
-        const cached=JSON.parse(localStorage.getItem("cadence-weather-cache") || "null");
-        if(cached?.weather?.current) applyWeather(cached,true);
+      }catch(error){
+        const cached=readWeatherCache();
+        if(cached) applyWeather(cached,true);
         else{
             weatherValue("weatherIcon","📍");
             weatherValue("weatherPageIcon","📍");
@@ -344,15 +378,20 @@ async function loadWeather(){
             weatherValue("weatherPageLocation","Location unavailable");
             weatherValue("weatherDescription","Allow location, then tap refresh");
             weatherValue("weatherPageDescription","Allow location, then refresh");
+            weatherValue("weatherUpdatedAt","Weather unavailable · Try refresh");
         }
-    }finally{
-        document.querySelectorAll("#refreshWeather,#weatherPageRefresh").forEach(button=>button.classList.remove("refreshing"));
-    }
+      }finally{
+        setWeatherLoading(false);
+        weatherRequest=null;
+      }
+    })();
+    return weatherRequest;
 }
 
 document.getElementById("refreshWeather").addEventListener("click",loadWeather);
 document.getElementById("weatherPageRefresh").addEventListener("click",loadWeather);
 loadWeather();
+setInterval(()=>loadWeather({background:true}),weatherRefreshInterval);
 
 const songsStorageKey="cadence-custom-music";
 const playlistsStorageKey="cadence-music-playlists";

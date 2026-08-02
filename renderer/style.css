@@ -1014,6 +1014,12 @@ font-size:16px;
 -webkit-app-region:no-drag;
 }
 
+.weather-refresh:disabled,
+.weather-page-refresh:disabled{
+    cursor:wait;
+    opacity:.72;
+}
+
 .focus-sound-card{
 width:100%;
 display:flex;
@@ -2698,6 +2704,23 @@ label.add-music-button:focus-visible{
     padding:0 5px;
     color:#789588;
     font-size:8px;
+}
+
+.weather-update-status{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    text-align:right;
+}
+
+.weather-update-status::before{
+    width:5px;
+    height:5px;
+    flex:none;
+    border-radius:50%;
+    background:var(--theme-accent-soft,#82e3b0);
+    box-shadow:0 0 7px rgba(var(--theme-rgb),.55);
+    content:"";
 }
 
 .weather-metrics{
