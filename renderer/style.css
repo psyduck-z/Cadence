@@ -2723,6 +2723,115 @@ label.add-music-button:focus-visible{
     content:"";
 }
 
+.sun-journey-card{
+    padding:13px 14px 11px;
+    overflow:hidden;
+    border:1px solid rgba(var(--theme-rgb),.11);
+    border-radius:19px;
+    background:
+        radial-gradient(ellipse at 50% 90%,rgba(255,194,111,.11),transparent 51%),
+        linear-gradient(180deg,rgba(var(--theme-rgb),.055),rgba(3,16,11,.34));
+    box-shadow:inset 0 1px rgba(255,255,255,.035);
+}
+
+.sun-journey-card .weather-section-heading > span{
+    max-width:55%;
+    color:#c5a77d;
+    text-align:right;
+}
+
+.sun-journey-visual{
+    position:relative;
+    height:134px;
+    margin-top:1px;
+}
+
+.sun-journey-arc{
+    position:absolute;
+    inset:0 0 auto;
+    width:100%;
+    height:117px;
+    overflow:visible;
+}
+
+.sun-arc-shadow,
+.sun-arc-progress{
+    fill:none;
+    stroke-linecap:round;
+    stroke-width:3;
+}
+
+.sun-arc-shadow{
+    stroke:rgba(var(--theme-rgb),.13);
+    stroke-dasharray:2 7;
+}
+
+.sun-arc-progress{
+    stroke:url(#sunArcGradient);
+    stroke-dasharray:100;
+    stroke-dashoffset:100;
+    filter:drop-shadow(0 0 4px rgba(255,190,105,.28));
+    transition:stroke-dashoffset .8s ease;
+}
+
+.sun-horizon{
+    stroke:rgba(var(--theme-rgb),.12);
+    stroke-width:1;
+}
+
+.sun-marker-glow{
+    fill:rgba(255,193,97,.17);
+    filter:blur(2px);
+}
+
+.sun-marker{
+    fill:#ffd77d;
+    stroke:#fff0bf;
+    stroke-width:1.5;
+    filter:drop-shadow(0 0 7px rgba(255,193,97,.8));
+}
+
+.sun-journey-card[data-sun-phase="night"] .sun-marker{
+    fill:#a8b9b3;
+    stroke:#d8e3df;
+    filter:drop-shadow(0 0 5px rgba(var(--theme-rgb),.35));
+}
+
+.sun-journey-card[data-sun-phase="night"] .sun-marker-glow{
+    fill:rgba(var(--theme-rgb),.1);
+}
+
+.sun-time{
+    position:absolute;
+    bottom:0;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+}
+
+.sun-time span,
+.sun-journey-footer{
+    color:#6f8b7e;
+    font-size:7px;
+}
+
+.sun-time strong{
+    color:#d9e9e1;
+    font-size:9px;
+    font-weight:620;
+}
+
+.sun-time-rise{left:0;text-align:left;}
+.sun-time-noon{left:50%;transform:translateX(-50%);text-align:center;}
+.sun-time-set{right:0;text-align:right;}
+
+.sun-journey-footer{
+    display:flex;
+    justify-content:space-between;
+    padding-top:8px;
+    border-top:1px solid rgba(var(--theme-rgb),.075);
+}
+
 .weather-metrics{
     display:grid;
     grid-template-columns:repeat(3,1fr);

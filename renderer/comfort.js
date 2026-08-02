@@ -265,6 +265,84 @@ function clampRainChance(value){
 const weatherRefreshInterval=5*60*1000;
 let weatherRequest=null;
 let hasWeatherData=false;
+let latestSunWeather=null;
+
+function solarMinutes(value){
+    const match=String(value || "").match(/T(\d{2}):(\d{2})/);
+    return match ? Number(match[1])*60+Number(match[2]) : null;
+}
+
+function solarClock(minutes){
+    if(!Number.isFinite(minutes)) return "--:--";
+    const rounded=Math.round(minutes);
+    const hours=Math.floor(rounded/60)%24;
+    const minute=rounded%60;
+    const suffix=hours>=12 ? "pm" : "am";
+    return `${hours%12 || 12}:${String(minute).padStart(2,"0")} ${suffix}`;
+}
+
+function durationLabel(minutes){
+    const safe=Math.max(0,Math.round(minutes));
+    const hours=Math.floor(safe/60);
+    const remainder=safe%60;
+    return hours ? `${hours}h ${remainder}m` : `${remainder}m`;
+}
+
+function renderSunJourney(weather){
+    const daily=weather?.daily;
+    if(!daily?.sunrise?.length || !daily?.sunset?.length){
+        weatherValue("sunJourneyStatus","Daylight data unavailable");
+        weatherValue("sunJourneyPhase","Refresh when online");
+        return;
+    }
+    const offset=Number(weather.utc_offset_seconds) || 0;
+    const localNow=new Date(Date.now()+offset*1000);
+    const localDate=localNow.toISOString().slice(0,10);
+    const dayIndex=Math.max(0,daily.time?.indexOf(localDate) ?? 0);
+    const sunrise=solarMinutes(daily.sunrise[dayIndex]);
+    const sunset=solarMinutes(daily.sunset[dayIndex]);
+    if(!Number.isFinite(sunrise) || !Number.isFinite(sunset) || sunset<=sunrise) return;
+    const now=localNow.getUTCHours()*60+localNow.getUTCMinutes()+localNow.getUTCSeconds()/60;
+    const noon=(sunrise+sunset)/2;
+    const daylight=Number(daily.daylight_duration?.[dayIndex])/60 || sunset-sunrise;
+    const progress=Math.min(1,Math.max(0,(now-sunrise)/(sunset-sunrise)));
+    const angle=Math.PI*progress;
+    const x=180-160*Math.cos(angle);
+    const y=122-108*Math.sin(angle);
+    const marker=document.getElementById("sunMarker");
+    const glow=document.getElementById("sunMarkerGlow");
+    const arc=document.getElementById("sunArcProgress");
+    [marker,glow].forEach(element=>{
+        element?.setAttribute("cx",x.toFixed(1));
+        element?.setAttribute("cy",y.toFixed(1));
+    });
+    if(arc) arc.style.strokeDashoffset=String(100-progress*100);
+    weatherValue("weatherSunrise",solarClock(sunrise));
+    weatherValue("weatherSolarNoon",solarClock(noon));
+    weatherValue("weatherSunset",solarClock(sunset));
+    weatherValue("weatherDaylight",`${durationLabel(daylight)} of daylight`);
+    const card=document.getElementById("sunJourneyCard");
+    let status;
+    let phase;
+    if(now<sunrise){
+        status=`Sunrise in ${durationLabel(sunrise-now)}`;
+        phase="Before dawn";
+        card?.setAttribute("data-sun-phase","night");
+    }else if(now<=sunset){
+        status=`Sunset in ${durationLabel(sunset-now)}`;
+        phase=now<noon ? "Morning light" : "Afternoon light";
+        card?.setAttribute("data-sun-phase","day");
+    }else{
+        const tomorrow=solarMinutes(daily.sunrise[dayIndex+1]);
+        status=Number.isFinite(tomorrow) ? `Night · Sunrise ${solarClock(tomorrow)}` : "Night after sunset";
+        phase="After sunset";
+        card?.setAttribute("data-sun-phase","night");
+    }
+    weatherValue("sunJourneyStatus",status);
+    weatherValue("sunJourneyPhase",phase);
+    const description=document.getElementById("sunJourneyDescription");
+    if(description) description.textContent=`Sunrise ${solarClock(sunrise)}, ${phase.toLowerCase()}, sunset ${solarClock(sunset)}.`;
+}
 
 function weatherTimestamp(data,saved=false){
     const updatedAt=new Date(data?.updatedAt);
@@ -324,6 +402,8 @@ function applyWeather(data,saved=false){
     const badge=document.getElementById("airQualityBadge");
     if(badge) badge.dataset.level=(aqiLabel.split(" ")[0] || "unknown").toLowerCase();
     renderForecast(data.weather);
+    latestSunWeather=data.weather;
+    renderSunJourney(data.weather);
     setWeatherAtmosphere(current.weather_code);
     hasWeatherData=true;
 }
@@ -356,7 +436,7 @@ function loadWeather({background=false}={}){
             longitude=ipLocation.longitude;
             detectedPlace=ipLocation.city || "";
         }
-        const weatherUrl=`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility&hourly=precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=5&timezone=auto`;
+        const weatherUrl=`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility&hourly=precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,daylight_duration&forecast_days=5&timezone=auto`;
         const airUrl=`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=us_aqi,pm2_5,uv_index&timezone=auto`;
         const [weatherResponse,airResponse]=await Promise.all([fetch(weatherUrl),fetch(airUrl)]);
         if(!weatherResponse.ok) throw new Error("Weather unavailable");
@@ -392,6 +472,9 @@ document.getElementById("refreshWeather").addEventListener("click",loadWeather);
 document.getElementById("weatherPageRefresh").addEventListener("click",loadWeather);
 loadWeather();
 setInterval(()=>loadWeather({background:true}),weatherRefreshInterval);
+setInterval(()=>{
+    if(latestSunWeather) renderSunJourney(latestSunWeather);
+},60*1000);
 
 const songsStorageKey="cadence-custom-music";
 const playlistsStorageKey="cadence-music-playlists";
