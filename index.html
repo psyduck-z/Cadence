@@ -18,7 +18,7 @@
 
 <div class="widget">
 
-<div class="logo" title="Drag Cadence" aria-label="Cadence window drag handle">
+<div class="logo" title="Right-click and drag Cadence" aria-label="Right-click and drag to move the Cadence window">
 CADENCE
 </div>
 
@@ -51,6 +51,15 @@ Schedule
 
 <button class="tab" data-page="music">
 Music
+</button>
+
+<button class="tab" data-page="weather">
+Weather
+</button>
+
+<button id="updateTab" class="tab update-tab" data-page="update">
+Update
+<span id="updateTabBadge" class="update-tab-badge hidden" aria-label="Update available">!</span>
 </button>
 
 
@@ -538,6 +547,79 @@ Playlist name
 </section>
 </div>
 
+<div class="page weather-page hidden">
+<header class="weather-page-hero">
+<div class="weather-page-condition">
+<span id="weatherPageIcon" aria-hidden="true">☁️</span>
+<div>
+<p id="weatherPageLocation" class="schedule-eyebrow">Finding your location…</p>
+<h2 id="weatherPageTemperature">--°</h2>
+<p id="weatherPageDescription">Gathering the atmosphere</p>
+</div>
+</div>
+<button id="weatherPageRefresh" class="weather-page-refresh" type="button" aria-label="Refresh detailed weather">↻</button>
+</header>
+
+<div class="weather-comfort-line">
+<span id="weatherFeelsLike">Feels like --°</span>
+<span id="weatherUpdatedAt">Not updated yet</span>
+</div>
+
+<section class="weather-metrics" aria-label="Current weather details">
+<article><i>💧</i><span>Humidity</span><strong id="weatherHumidity">--%</strong></article>
+<article><i>💨</i><span>Wind</span><strong id="weatherWind">-- km/h</strong><small id="weatherWindDetail">Direction unavailable</small></article>
+<article><i>◉</i><span>Pressure</span><strong id="weatherPressure">-- hPa</strong></article>
+<article><i>◌</i><span>Visibility</span><strong id="weatherVisibility">-- km</strong></article>
+<article><i>☂</i><span>Rain chance</span><strong id="weatherRainChance">--%</strong></article>
+<article><i>☀</i><span>UV index</span><strong id="weatherUv">--</strong></article>
+</section>
+
+<section class="environment-card">
+<div class="environment-heading">
+<div><p class="schedule-eyebrow">Around you</p><h3>Air & fire conditions</h3></div>
+<span id="airQualityBadge" class="environment-badge">Checking</span>
+</div>
+<div class="environment-grid">
+<div><span>Air quality</span><strong id="weatherAqi">-- AQI</strong><small id="weatherAqiLabel">Waiting for data</small></div>
+<div><span>Fine particles</span><strong id="weatherPm25">-- µg/m³</strong><small>PM2.5 estimate</small></div>
+<div><span>Fire conditions</span><strong id="weatherFireRisk">--</strong><small id="weatherFireReason">Weather-based estimate</small></div>
+</div>
+<p class="fire-disclaimer">Fire conditions are a general weather-based estimate, not an official warning. Follow local emergency services during fire weather.</p>
+</section>
+
+<section class="weather-forecast-card">
+<div class="weather-section-heading"><h3>Next few days</h3><span>Local forecast</span></div>
+<div id="weatherForecast" class="weather-forecast"></div>
+</section>
+</div>
+
+<div class="page update-page hidden">
+<header class="update-page-heading">
+<div><p class="schedule-eyebrow">Cadence care</p><h2>Updates</h2><p>Keep your companion fresh, safely and on your terms.</p></div>
+<span id="updateHeroIcon" class="update-hero-icon" aria-hidden="true">✦</span>
+</header>
+
+<section id="updateCard" class="update-card update-card-expanded" data-update-state="idle">
+<div class="update-card-glow" aria-hidden="true"></div>
+<div class="update-card-heading">
+<div class="update-identity"><span id="updateStateIcon" class="update-state-icon" aria-hidden="true">✦</span><div><p class="schedule-eyebrow">Update status</p><h3 id="updateStateLabel">Ready when you are</h3></div></div>
+<span id="cadenceVersion" class="update-version">v—</span>
+</div>
+<p id="updateStatus" class="update-status" aria-live="polite">Check for the newest features and gentle improvements.</p>
+<div class="update-meta-row"><span>Last checked</span><strong id="updateLastChecked">Not checked yet</strong></div>
+<div id="updateProgress" class="update-progress hidden" aria-hidden="true"><div id="updateProgressBar"></div></div>
+<div id="updateProgressText" class="update-progress-text hidden">0%</div>
+<button id="checkForUpdates" class="check-update-button" type="button"><span aria-hidden="true">↻</span> Check for updates</button>
+</section>
+
+<section id="releaseNotesCard" class="release-notes-card hidden">
+<div class="weather-section-heading"><h3 id="releaseNotesTitle">What’s new</h3><span id="latestVersionLabel"></span></div>
+<div id="releaseNotesContent" class="release-notes-content"></div>
+</section>
+
+<div class="update-trust-note"><span>♢</span><div><strong>You stay in control</strong><p>Cadence asks before downloading and again before restarting. Your tasks, schedules, music and preferences remain safe.</p></div></div>
+</div>
+
 
 <div class="page settings-page hidden">
 
@@ -810,33 +892,6 @@ value="0">
 
 
 </div>
-
-
-<!-- all settings here -->
-
-<section id="updateCard" class="update-card" data-update-state="idle">
-<div class="update-card-glow" aria-hidden="true"></div>
-<div class="update-card-heading">
-<div class="update-identity">
-<span id="updateStateIcon" class="update-state-icon" aria-hidden="true">✦</span>
-<div>
-<p class="schedule-eyebrow">Cadence care</p>
-<h3>Updates</h3>
-</div>
-</div>
-<span id="cadenceVersion" class="update-version">v—</span>
-</div>
-<div class="update-status-row">
-<strong id="updateStateLabel">Ready when you are</strong>
-<span id="updateLastChecked">Not checked yet</span>
-</div>
-<p id="updateStatus" class="update-status" aria-live="polite">Check for the newest features and gentle improvements.</p>
-<div id="updateProgress" class="update-progress hidden" aria-hidden="true">
-<div id="updateProgressBar"></div>
-</div>
-<div id="updateProgressText" class="update-progress-text hidden">0%</div>
-<button id="checkForUpdates" class="check-update-button" type="button"><span aria-hidden="true">↻</span> Check for updates</button>
-</section>
 
 
 <button id="resetDefaults" class="reset-defaults">

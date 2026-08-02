@@ -40,11 +40,14 @@ let reminderTimer=null;
 let updateTimer=null;
 let updateDownloaded=false;
 let lastUpdateCheck=null;
+let updateCheckInProgress=false;
+let updaterState={status:"idle"};
 
 autoUpdater.autoDownload=false;
 autoUpdater.autoInstallOnAppQuit=false;
 
 function sendUpdaterStatus(status,details={}){
+    updaterState={...updaterState,status,...details};
     if(!win || win.isDestroyed() || win.webContents.isDestroyed()) return;
     win.webContents.send("updater-status",{
         status,
@@ -55,6 +58,9 @@ function sendUpdaterStatus(status,details={}){
 }
 
 async function checkForCadenceUpdate(manual=false){
+    if(updateCheckInProgress){
+        return;
+    }
     if(!app.isPackaged){
         if(manual){
             sendUpdaterStatus("development",{
@@ -65,6 +71,7 @@ async function checkForCadenceUpdate(manual=false){
     }
 
     try{
+        updateCheckInProgress=true;
         lastUpdateCheck=new Date().toISOString();
         sendUpdaterStatus("checking",{manual});
         await autoUpdater.checkForUpdates();
@@ -74,11 +81,17 @@ async function checkForCadenceUpdate(manual=false){
             message:"Cadence couldn't reach GitHub. Check your connection and try again.",
             errorCode:error?.code || "UPDATE_CHECK_FAILED"
         });
+    }finally{
+        updateCheckInProgress=false;
     }
 }
 
 autoUpdater.on("update-available",info=>{
-    sendUpdaterStatus("available",{availableVersion:info.version});
+    sendUpdaterStatus("available",{
+        availableVersion:info.version,
+        releaseName:info.releaseName || "",
+        releaseNotes:info.releaseNotes || ""
+    });
 });
 
 autoUpdater.on("update-not-available",()=>{
@@ -91,7 +104,11 @@ autoUpdater.on("download-progress",progress=>{
 
 autoUpdater.on("update-downloaded",info=>{
     updateDownloaded=true;
-    sendUpdaterStatus("downloaded",{availableVersion:info.version});
+    sendUpdaterStatus("downloaded",{
+        availableVersion:info.version,
+        releaseName:info.releaseName || "",
+        releaseNotes:info.releaseNotes || ""
+    });
 });
 
 autoUpdater.on("error",()=>{
@@ -350,9 +367,9 @@ function createWindow(){
 
     win = new BrowserWindow({
 
-        width:440,
+        width:540,
 
-        height:620,
+        height:680,
 
         frame:false,
 
@@ -739,6 +756,27 @@ app.whenReady().then(()=>{
         win.setAlwaysOnTop(Boolean(enabled),"floating");
     });
 
+    let rightDragOffset=null;
+    ipcMain.on("right-drag-window",(event,payload={})=>{
+        if(!win || win.isDestroyed() || event.sender!==win.webContents) return;
+        const screenX=Number(payload.screenX);
+        const screenY=Number(payload.screenY);
+        if(payload.phase==="start" && Number.isFinite(screenX) && Number.isFinite(screenY)){
+            const [windowX,windowY]=win.getPosition();
+            rightDragOffset={x:screenX-windowX,y:screenY-windowY};
+            return;
+        }
+        if(payload.phase==="move" && rightDragOffset && Number.isFinite(screenX) && Number.isFinite(screenY)){
+            win.setPosition(
+                Math.round(screenX-rightDragOffset.x),
+                Math.round(screenY-rightDragOffset.y),
+                false
+            );
+            return;
+        }
+        if(payload.phase==="end") rightDragOffset=null;
+    });
+
     ipcMain.on("check-for-updates",()=>checkForCadenceUpdate(true));
 
     ipcMain.on("download-update",async()=>{
@@ -761,7 +799,8 @@ app.whenReady().then(()=>{
 
     ipcMain.on("get-updater-status",event=>{
         event.sender.send("updater-status",{
-            status:updateDownloaded ? "downloaded" : "idle",
+            ...updaterState,
+            status:updateDownloaded ? "downloaded" : updaterState.status,
             version:app.getVersion(),
             checkedAt:lastUpdateCheck
         });
