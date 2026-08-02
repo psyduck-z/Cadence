@@ -1,6 +1,6 @@
 {
   "name": "cadence",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "A cozy, focused desktop companion.",
   "main": "main.js",
   "scripts": {
@@ -25,6 +25,10 @@
       "releaseType": "release"
     },
     "asar": true,
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US"
+    ],
     "directories": {
       "output": "dist"
     },
