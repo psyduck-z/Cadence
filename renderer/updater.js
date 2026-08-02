@@ -44,14 +44,30 @@ function formatCheckedAt(value){
 }
 
 function normaliseReleaseNotes(notes){
-    if(typeof notes==="string") return notes.trim();
+    let combined="";
+    if(typeof notes==="string") combined=notes;
     if(Array.isArray(notes)){
-        return notes.map(note=>{
+        combined=notes.map(note=>{
             if(typeof note==="string") return note;
             return note?.note || note?.version || "";
-        }).filter(Boolean).join("\n\n").trim();
+        }).filter(Boolean).join("\n\n");
     }
-    return "";
+    if(!combined) return "";
+    if(!/<\/?[a-z][\s\S]*>/i.test(combined)) return combined.trim();
+
+    const documentFragment=new DOMParser().parseFromString(combined,"text/html");
+    documentFragment.querySelectorAll("script,style,template").forEach(element=>element.remove());
+    documentFragment.querySelectorAll("br").forEach(element=>element.replaceWith("\n"));
+    documentFragment.querySelectorAll("li").forEach(element=>{
+        element.prepend("• ");
+        element.append("\n");
+    });
+    documentFragment.querySelectorAll("p,h1,h2,h3,h4,h5,h6,div,ul,ol").forEach(element=>element.append("\n"));
+    return documentFragment.body.textContent
+        .replace(/\u00a0/g," ")
+        .replace(/[ \t]+\n/g,"\n")
+        .replace(/\n{3,}/g,"\n\n")
+        .trim();
 }
 
 function renderReleaseNotes(state){
@@ -88,7 +104,7 @@ function hideProgress(){
 function setAction(state){
     updateAction.disabled=state.status==="checking" || state.status==="downloading";
     if(state.status==="checking") updateAction.innerHTML='<span class="update-spin" aria-hidden="true">↻</span> Checking…';
-    else if(state.status==="available") updateAction.innerHTML='<span aria-hidden="true">↓</span> Download update';
+    else if(state.status==="available") updateAction.innerHTML=`<span aria-hidden="true">↓</span> Download${state.availableVersion ? ` v${state.availableVersion}` : " update"}`;
     else if(state.status==="downloading") updateAction.innerHTML='<span aria-hidden="true">↓</span> Downloading…';
     else if(state.status==="downloaded") updateAction.innerHTML='<span aria-hidden="true">↻</span> Restart and install';
     else updateAction.innerHTML='<span aria-hidden="true">↻</span> Check for updates';
@@ -109,7 +125,9 @@ function renderState(state){
     if(state.status==="development") updateStatus.textContent=state.message;
     if(state.status==="checking") updateStatus.textContent="Looking for a newer version of Cadence…";
     if(state.status==="current") updateStatus.textContent=state.message || "You have the newest version of Cadence.";
-    if(state.status==="available") updateStatus.textContent=`Cadence ${state.availableVersion} is ready when you are.`;
+    if(state.status==="available") updateStatus.textContent=dismissedVersion===state.availableVersion
+        ? "Saved for later — download whenever you’re ready."
+        : `Cadence ${state.availableVersion} is ready when you are.`;
     if(state.status==="downloading") updateStatus.textContent="Downloading safely in the background…";
     if(state.status==="downloaded") updateStatus.textContent="The update is downloaded and ready to install.";
     if(state.status==="error") updateStatus.textContent=state.message || "Cadence couldn't check for updates.";
@@ -137,7 +155,7 @@ updaterIpc.on("updater-status",(event,state)=>{
 
 updateAction.addEventListener("click",()=>{
     if(currentState.status==="available"){
-        updaterIpc.send("download-update");
+        updateAvailableModal.classList.remove("hidden");
         return;
     }
     if(currentState.status==="downloaded"){
@@ -151,6 +169,7 @@ updateAction.addEventListener("click",()=>{
 document.getElementById("laterUpdate").addEventListener("click",()=>{
     dismissedVersion=document.getElementById("updateNewVersion").textContent.replace(/^v/,"");
     closeUpdateModal(updateAvailableModal);
+    updateStatus.textContent="Saved for later — download whenever you’re ready.";
 });
 document.getElementById("downloadUpdate").addEventListener("click",()=>{
     closeUpdateModal(updateAvailableModal);

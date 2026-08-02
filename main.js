@@ -50,10 +50,9 @@ function sendUpdaterStatus(status,details={}){
     updaterState={...updaterState,status,...details};
     if(!win || win.isDestroyed() || win.webContents.isDestroyed()) return;
     win.webContents.send("updater-status",{
-        status,
+        ...updaterState,
         version:app.getVersion(),
-        checkedAt:lastUpdateCheck,
-        ...details
+        checkedAt:lastUpdateCheck
     });
 }
 
