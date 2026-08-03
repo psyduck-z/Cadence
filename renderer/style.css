@@ -2632,6 +2632,10 @@ label.add-music-button:focus-visible{
     -webkit-app-region:no-drag;
 }
 
+.weather-page > *{
+    flex:none;
+}
+
 .weather-page-hero,
 .update-page-heading{
     display:flex;
@@ -2724,6 +2728,8 @@ label.add-music-button:focus-visible{
 }
 
 .sun-journey-card{
+    min-height:200px;
+    flex:none;
     padding:13px 14px 11px;
     overflow:hidden;
     border:1px solid rgba(var(--theme-rgb),.11);
@@ -4558,6 +4564,72 @@ a,
 @keyframes update-shimmer{
     from{transform:translateX(-110%)}
     to{transform:translateX(110%)}
+}
+
+/* READABILITY: keep Cadence compact without relying on sub-10px copy. */
+.sound-next,
+.now-playing-copy small,
+.sound-choice small,
+.custom-music-coming small,
+.custom-music-heading small,
+.custom-music-list > p,
+.custom-track-play,
+.schedule-week-label,
+.schedule-day-tab span,
+.timetable-event strong,
+.tab,
+.weather-page-condition p:last-child,
+.update-page-heading p:last-child,
+.sun-time strong,
+.release-notes-content,
+.update-trust-note strong,
+.music-empty-state small,
+.playlist-song-choices > small,
+.playlist-form-actions button,
+.appearance-heading > span,
+.theme-choice,
+.hard-reset-card .form-error,
+#cadenceVersion,
+.transparency-control output,
+.update-status,
+.update-status-row small,
+.custom-track small{
+    font-size:10px;
+}
+
+.activity-bell,
+.activity-priority,
+.timetable-time-column span,
+.update-tab-badge,
+.weather-comfort-line,
+.weather-metrics article span,
+.weather-section-heading > span,
+.weather-forecast strong,
+.update-meta-row,
+.update-trust-note p,
+.track-focus-button,
+.playlist-upload small,
+.playlist-upload-summary,
+.playlist-card > div:nth-child(2) small,
+.playlist-card-actions button,
+.weather-theme-copy small,
+.window-setting-copy small,
+.update-status-row span,
+.update-progress-text{
+    font-size:9.5px;
+}
+
+.timetable-event span,
+.sun-time span,
+.sun-journey-footer,
+.weather-metrics article small,
+.environment-badge,
+.environment-grid span,
+.environment-grid small,
+.fire-disclaimer,
+.weather-forecast span,
+.weather-forecast small{
+    font-size:9px;
 }
 
 @media (prefers-reduced-motion:reduce){

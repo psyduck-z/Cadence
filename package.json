@@ -1,6 +1,6 @@
 {
   "name": "cadence",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "A cozy, focused desktop companion.",
   "main": "main.js",
   "scripts": {

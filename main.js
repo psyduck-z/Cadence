@@ -5,7 +5,8 @@ const {
     Tray,
     Menu,
     Notification,
-    powerMonitor
+    powerMonitor,
+    net
 } = require("electron");
 
 const fs = require("fs");
@@ -776,6 +777,36 @@ app.whenReady().then(()=>{
         if(payload.phase==="end") rightDragOffset=null;
     });
 
+    const bomObservationProducts=new Set([
+        "IDD60920",
+        "IDN60920",
+        "IDQ60920",
+        "IDS60920",
+        "IDT60920",
+        "IDV60920",
+        "IDW60920"
+    ]);
+    ipcMain.handle("get-bom-observations",async(event,productCode)=>{
+        if(event.sender!==win?.webContents || !bomObservationProducts.has(productCode)) return null;
+        const controller=new AbortController();
+        const timeout=setTimeout(()=>controller.abort(),8000);
+        try{
+            const response=await net.fetch(`https://www.bom.gov.au/fwo/${productCode}.xml`,{
+                headers:{"User-Agent":`Cadence/${app.getVersion()} weather observations`},
+                signal:controller.signal
+            });
+            if(!response.ok) throw new Error(`BOM observations returned ${response.status}`);
+            const xml=await response.text();
+            if(xml.length>2_000_000) throw new Error("BOM observation response was unexpectedly large");
+            return xml;
+        }catch(error){
+            console.error("Cadence couldn't load BOM observations:",error?.message || error);
+            return null;
+        }finally{
+            clearTimeout(timeout);
+        }
+    });
+
     ipcMain.on("check-for-updates",()=>checkForCadenceUpdate(true));
 
     ipcMain.on("download-update",async()=>{
@@ -820,7 +851,7 @@ app.whenReady().then(()=>{
 
     if(app.isPackaged){
         setTimeout(()=>checkForCadenceUpdate(false),12000);
-        updateTimer=setInterval(()=>checkForCadenceUpdate(false),6*60*60*1000);
+        updateTimer=setInterval(()=>checkForCadenceUpdate(false),10*60*1000);
     }
 
 });

@@ -262,6 +262,112 @@ function clampRainChance(value){
     return Math.min(99,Math.max(1,Math.round(Number.isFinite(chance) ? chance : 1)));
 }
 
+function bomProductForCoordinates(latitude,longitude){
+    if(latitude> -9 || latitude< -45 || longitude<111 || longitude>155) return null;
+    if(latitude< -39) return "IDT60920";
+    if(longitude<129) return "IDW60920";
+    if(latitude> -26 && longitude<138) return "IDD60920";
+    if(longitude<141 && latitude<= -26) return "IDS60920";
+    if(latitude> -29) return "IDQ60920";
+    if(latitude< -37) return "IDV60920";
+    return "IDN60920";
+}
+
+function distanceBetweenCoordinates(latitudeA,longitudeA,latitudeB,longitudeB){
+    const radians=value=>value*Math.PI/180;
+    const latitudeDistance=radians(latitudeB-latitudeA);
+    const longitudeDistance=radians(longitudeB-longitudeA);
+    const a=Math.sin(latitudeDistance/2)**2+
+        Math.cos(radians(latitudeA))*Math.cos(radians(latitudeB))*Math.sin(longitudeDistance/2)**2;
+    return 6371*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function bomConditionCode(condition,rainfall){
+    const text=String(condition || "").toLowerCase();
+    if(/thunder|storm|squall/.test(text)) return 95;
+    if(/snow|flurr/.test(text)) return 71;
+    if(/fog|mist/.test(text)) return 45;
+    if(/heavy rain/.test(text)) return 65;
+    if(/shower/.test(text)) return 80;
+    if(/rain/.test(text)) return 63;
+    if(/drizzle/.test(text)) return 51;
+    if(/overcast/.test(text)) return 3;
+    if(/cloud/.test(text)) return 2;
+    if(/clear|fine|sunny/.test(text)) return 0;
+    if(Number(rainfall)>0) return Number(rainfall)>=2 ? 65 : 61;
+    return null;
+}
+
+async function loadBomObservation(latitude,longitude){
+    const productCode=bomProductForCoordinates(latitude,longitude);
+    if(!productCode) return null;
+    try{
+        const {ipcRenderer}=require("electron");
+        const xmlText=await ipcRenderer.invoke("get-bom-observations",productCode);
+        if(!xmlText) return null;
+        const xml=new DOMParser().parseFromString(xmlText,"application/xml");
+        if(xml.querySelector("parsererror")) return null;
+        const candidates=[...xml.querySelectorAll("station")].map(station=>{
+            const stationLatitude=Number(station.getAttribute("lat"));
+            const stationLongitude=Number(station.getAttribute("lon"));
+            const period=station.querySelector("period");
+            const level=period?.querySelector('level[type="surface"]');
+            const observedAt=period?.getAttribute("time-utc");
+            if(!level || !Number.isFinite(stationLatitude) || !Number.isFinite(stationLongitude) || !observedAt) return null;
+            const age=Date.now()-Date.parse(observedAt);
+            if(!Number.isFinite(age) || age< -10*60*1000 || age>2*60*60*1000) return null;
+            const value=type=>{
+                const number=Number(level.querySelector(`element[type="${type}"]`)?.textContent);
+                return Number.isFinite(number) ? number : null;
+            };
+            const text=type=>{
+                const content=level.querySelector(`element[type="${type}"]`)?.textContent?.trim() || "";
+                return ["-","--","n/a"].includes(content.toLowerCase()) ? "" : content;
+            };
+            const temperature=value("air_temperature");
+            if(!Number.isFinite(temperature)) return null;
+            const distance=distanceBetweenCoordinates(latitude,longitude,stationLatitude,stationLongitude);
+            const rainfall=value("rain_ten");
+            const condition=text("weather") || text("cloud");
+            const conditionCode=bomConditionCode(condition,rainfall ?? 0);
+            const visibility=value("vis_km");
+            const gust=value("gust_kmh") ?? value("wind_gust_spd");
+            return {
+                station:station.getAttribute("description") || station.getAttribute("stn-name") || "nearby station",
+                observedAt,
+                distance,
+                qualityScore:distance+(Number.isFinite(visibility) ? 0 : 20)+(condition || Number.isFinite(conditionCode) ? 0 : 15)+(Number.isFinite(gust) ? 0 : 3),
+                conditionLabel:condition || (Number(rainfall)>0 ? "Rain observed" : ""),
+                values:{
+                    temperature_2m:temperature,
+                    apparent_temperature:value("apparent_temp"),
+                    relative_humidity_2m:value("rel-humidity"),
+                    surface_pressure:value("msl_pres") ?? value("pres"),
+                    wind_speed_10m:value("wind_spd_kmh"),
+                    wind_direction_10m:value("wind_dir_deg"),
+                    wind_gusts_10m:gust,
+                    visibility:Number.isFinite(visibility) ? visibility*1000 : null,
+                    precipitation:rainfall,
+                    weather_code:conditionCode
+                }
+            };
+        }).filter(Boolean).sort((a,b)=>a.qualityScore-b.qualityScore);
+        const nearest=candidates[0];
+        return nearest && nearest.distance<=150 ? nearest : null;
+    }catch(error){
+        return null;
+    }
+}
+
+function applyObservedValues(current,observation){
+    if(!observation) return current;
+    const observed={...current};
+    Object.entries(observation.values).forEach(([key,value])=>{
+        if(Number.isFinite(value)) observed[key]=value;
+    });
+    return observed;
+}
+
 const weatherRefreshInterval=5*60*1000;
 let weatherRequest=null;
 let hasWeatherData=false;
@@ -345,6 +451,11 @@ function renderSunJourney(weather){
 }
 
 function weatherTimestamp(data,saved=false){
+    if(data?.observation?.observedAt){
+        const observedAt=new Date(data.observation.observedAt);
+        const time=Number.isNaN(observedAt.getTime()) ? "recently" : observedAt.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+        return `BOM · ${data.observation.station} · ${time}${saved ? " · saved" : ""}`;
+    }
     const updatedAt=new Date(data?.updatedAt);
     const time=Number.isNaN(updatedAt.getTime()) ? "an earlier time" : updatedAt.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
     return saved ? `Saved weather from ${time} · Offline` : `Updated ${time} · Auto-refreshes every 5 min`;
@@ -369,15 +480,19 @@ function setWeatherLoading(loading){
 
 function applyWeather(data,saved=false){
     const current=data.weather.current;
-    const details=weatherCodes[current.weather_code] || ["🌤️","Weather nearby"];
+    const fallbackDetails=weatherCodes[current.weather_code] || ["🌤️","Weather nearby"];
+    const details=data.observation?.conditionLabel
+        ? [fallbackDetails[0],data.observation.conditionLabel]
+        : fallbackDetails;
     const temperature=`${Math.round(current.temperature_2m)}°`;
     weatherValue("weatherIcon",details[0]);
     weatherValue("weatherTemperature",temperature);
-    weatherValue("weatherDescription",`${details[1]}${saved ? " · saved" : ""}`);
+    const source=data.observation ? " · BOM observation" : "";
+    weatherValue("weatherDescription",`${details[1]}${source}${saved ? " · saved" : ""}`);
     weatherValue("weatherLocation",data.location);
     weatherValue("weatherPageIcon",details[0]);
     weatherValue("weatherPageTemperature",temperature);
-    weatherValue("weatherPageDescription",`${details[1]}${saved ? " · saved" : ""}`);
+    weatherValue("weatherPageDescription",`${details[1]}${source}${saved ? " · saved" : ""}`);
     weatherValue("weatherPageLocation",data.location);
     weatherValue("weatherFeelsLike",`Feels like ${Math.round(current.apparent_temperature)}°`);
     weatherValue("weatherUpdatedAt",weatherTimestamp(data,saved));
@@ -438,12 +553,17 @@ function loadWeather({background=false}={}){
         }
         const weatherUrl=`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility&hourly=precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,daylight_duration&forecast_days=5&timezone=auto`;
         const airUrl=`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=us_aqi,pm2_5,uv_index&timezone=auto`;
-        const [weatherResponse,airResponse]=await Promise.all([fetch(weatherUrl),fetch(airUrl)]);
+        const [weatherResponse,airResponse,observation]=await Promise.all([
+            fetch(weatherUrl),
+            fetch(airUrl),
+            loadBomObservation(latitude,longitude)
+        ]);
         if(!weatherResponse.ok) throw new Error("Weather unavailable");
         const weather=await weatherResponse.json();
+        weather.current=applyObservedValues(weather.current,observation);
         const air=airResponse.ok ? await airResponse.json() : null;
         const timezonePlace=(weather.timezone || "").split("/").pop().replaceAll("_"," ");
-        const data={weather,air,location:detectedPlace || timezonePlace || "Right where you are",updatedAt:new Date().toISOString()};
+        const data={weather,air,observation,location:detectedPlace || timezonePlace || "Right where you are",updatedAt:new Date().toISOString()};
         applyWeather(data);
         localStorage.setItem("cadence-weather-cache",JSON.stringify(data));
       }catch(error){
