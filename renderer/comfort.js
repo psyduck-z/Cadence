@@ -315,7 +315,7 @@ async function loadBomObservation(latitude,longitude){
             const observedAt=period?.getAttribute("time-utc");
             if(!level || !Number.isFinite(stationLatitude) || !Number.isFinite(stationLongitude) || !observedAt) return null;
             const age=Date.now()-Date.parse(observedAt);
-            if(!Number.isFinite(age) || age< -10*60*1000 || age>2*60*60*1000) return null;
+            if(!Number.isFinite(age) || age< -5*60*1000 || age>90*60*1000) return null;
             const value=type=>{
                 const number=Number(level.querySelector(`element[type="${type}"]`)?.textContent);
                 return Number.isFinite(number) ? number : null;
@@ -335,8 +335,8 @@ async function loadBomObservation(latitude,longitude){
             return {
                 station:station.getAttribute("description") || station.getAttribute("stn-name") || "nearby station",
                 observedAt,
+                ageMinutes:Math.max(0,Math.round(age/60000)),
                 distance,
-                qualityScore:distance+(Number.isFinite(visibility) ? 0 : 20)+(condition || Number.isFinite(conditionCode) ? 0 : 15)+(Number.isFinite(gust) ? 0 : 3),
                 conditionLabel:condition || (Number(rainfall)>0 ? "Rain observed" : ""),
                 values:{
                     temperature_2m:temperature,
@@ -351,9 +351,9 @@ async function loadBomObservation(latitude,longitude){
                     weather_code:conditionCode
                 }
             };
-        }).filter(Boolean).sort((a,b)=>a.qualityScore-b.qualityScore);
+        }).filter(Boolean).sort((a,b)=>a.distance-b.distance || a.ageMinutes-b.ageMinutes);
         const nearest=candidates[0];
-        return nearest && nearest.distance<=150 ? nearest : null;
+        return nearest && nearest.distance<=100 ? nearest : null;
     }catch(error){
         return null;
     }
@@ -368,8 +368,56 @@ function applyObservedValues(current,observation){
     return observed;
 }
 
+function observationCoverage(observation){
+    if(!observation) return "No nearby fresh BOM station was available";
+    const fields=[];
+    const values=observation.values || {};
+    if(Number.isFinite(values.temperature_2m)) fields.push("temperature");
+    if(Number.isFinite(values.relative_humidity_2m)) fields.push("humidity");
+    if(Number.isFinite(values.wind_speed_10m)) fields.push("wind");
+    if(Number.isFinite(values.wind_gusts_10m)) fields.push("gusts");
+    if(Number.isFinite(values.surface_pressure)) fields.push("pressure");
+    if(Number.isFinite(values.visibility)) fields.push("visibility");
+    if(Number.isFinite(values.precipitation)) fields.push("rainfall");
+    if(Number.isFinite(values.weather_code)) fields.push("conditions");
+    return fields.length ? fields.join(" · ") : "Temperature observation";
+}
+
 const weatherRefreshInterval=5*60*1000;
 let weatherRequest=null;
+const weatherLocationStorageKey="cadence-weather-location";
+let weatherLocationPreference={mode:"auto",name:"",latitude:null,longitude:null};
+try{
+    weatherLocationPreference={...weatherLocationPreference,...JSON.parse(localStorage.getItem(weatherLocationStorageKey) || "{}")};
+}catch(error){}
+if(weatherLocationPreference.mode!=="manual") weatherLocationPreference.mode="auto";
+
+function updateWeatherLocationSettings(message=""){
+    const manual=weatherLocationPreference.mode==="manual";
+    document.getElementById("automaticWeatherLocation").checked=!manual;
+    document.getElementById("manualWeatherLocation").checked=manual;
+    document.getElementById("weatherLocationMode").textContent=manual ? "Manual" : "Automatic";
+    document.getElementById("weatherLocationSearch").disabled=!manual;
+    document.getElementById("saveWeatherLocation").disabled=!manual;
+    if(manual && weatherLocationPreference.name) document.getElementById("weatherLocationSearch").value=weatherLocationPreference.name;
+    document.getElementById("weatherLocationSettingStatus").textContent=message || (manual
+        ? `Using ${weatherLocationPreference.name}.`
+        : "Cadence is locating you automatically. Results can be approximate.");
+}
+
+function saveWeatherLocationPreference(){
+    localStorage.setItem(weatherLocationStorageKey,JSON.stringify(weatherLocationPreference));
+}
+
+async function resolveManualWeatherLocation(query){
+    const url=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`;
+    const response=await fetch(url);
+    if(!response.ok) throw new Error("Location search unavailable");
+    const result=(await response.json()).results?.[0];
+    if(!result) throw new Error("Location not found");
+    const parts=[result.name,result.admin1,result.country].filter((part,index,array)=>part && array.indexOf(part)===index);
+    return {name:parts.join(", "),latitude:result.latitude,longitude:result.longitude};
+}
 let hasWeatherData=false;
 let latestSunWeather=null;
 
@@ -454,7 +502,7 @@ function weatherTimestamp(data,saved=false){
     if(data?.observation?.observedAt){
         const observedAt=new Date(data.observation.observedAt);
         const time=Number.isNaN(observedAt.getTime()) ? "recently" : observedAt.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
-        return `BOM · ${data.observation.station} · ${time}${saved ? " · saved" : ""}`;
+        return `BOM · ${Math.round(data.observation.distance)} km away · ${time}${saved ? " · saved" : ""}`;
     }
     const updatedAt=new Date(data?.updatedAt);
     const time=Number.isNaN(updatedAt.getTime()) ? "an earlier time" : updatedAt.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
@@ -496,6 +544,22 @@ function applyWeather(data,saved=false){
     weatherValue("weatherPageLocation",data.location);
     weatherValue("weatherFeelsLike",`Feels like ${Math.round(current.apparent_temperature)}°`);
     weatherValue("weatherUpdatedAt",weatherTimestamp(data,saved));
+    weatherValue("weatherObservationStation",data.observation ? data.observation.station : "Forecast fallback");
+    const observationDistance=Number(data.observation?.distance);
+    const observationTime=Date.parse(data.observation?.observedAt);
+    const observationAge=Number.isFinite(Number(data.observation?.ageMinutes))
+        ? Number(data.observation.ageMinutes)
+        : Number.isFinite(observationTime) ? Math.max(0,Math.round((Date.now()-observationTime)/60000)) : null;
+    weatherValue("weatherObservationDistance",data.observation
+        ? `${Number.isFinite(observationDistance) ? `${observationDistance.toFixed(1)} km away` : "Nearby"} · ${Number.isFinite(observationAge) ? `${observationAge} min old` : "observed recently"}`
+        : "No fresh BOM observation within 100 km");
+    weatherValue("weatherObservationCoverage",observationCoverage(data.observation));
+    weatherValue("weatherForecastSource","Open-Meteo · forecast, rain chance, UV, AQI and sun times");
+    const sourceBadge=document.getElementById("weatherSourceBadge");
+    if(sourceBadge){
+        sourceBadge.textContent=data.observation ? "Live BOM" : "Forecast fallback";
+        sourceBadge.dataset.source=data.observation ? "live" : "fallback";
+    }
     weatherValue("weatherHumidity",`${Math.round(current.relative_humidity_2m)}%`);
     weatherValue("weatherWind",`${Math.round(current.wind_speed_10m)} km/h`);
     weatherValue("weatherWindDetail",`${windDirection(current.wind_direction_10m)} · gusts ${Math.round(current.wind_gusts_10m)} km/h`);
@@ -537,7 +601,11 @@ function loadWeather({background=false}={}){
         let latitude;
         let longitude;
         let detectedPlace="";
-        try{
+        if(weatherLocationPreference.mode==="manual" && Number.isFinite(Number(weatherLocationPreference.latitude)) && Number.isFinite(Number(weatherLocationPreference.longitude))){
+            latitude=Number(weatherLocationPreference.latitude);
+            longitude=Number(weatherLocationPreference.longitude);
+            detectedPlace=weatherLocationPreference.name;
+        }else try{
             const position=await new Promise((resolve,reject)=>{
                 navigator.geolocation.getCurrentPosition(resolve,reject,{timeout:7000,maximumAge:1800000});
             });
@@ -588,8 +656,50 @@ function loadWeather({background=false}={}){
     return weatherRequest;
 }
 
+async function refreshWeatherAfterLocationChange(){
+    if(weatherRequest) await weatherRequest;
+    return loadWeather();
+}
+
 document.getElementById("refreshWeather").addEventListener("click",loadWeather);
 document.getElementById("weatherPageRefresh").addEventListener("click",loadWeather);
+document.querySelectorAll('input[name="weatherLocationMode"]').forEach(input=>input.addEventListener("change",async event=>{
+    if(event.target.value==="manual"){
+        weatherLocationPreference.mode="manual";
+        updateWeatherLocationSettings("Enter a suburb, town or city, then choose Use location.");
+        document.getElementById("weatherLocationSearch").focus();
+        return;
+    }
+    weatherLocationPreference={mode:"auto",name:"",latitude:null,longitude:null};
+    saveWeatherLocationPreference();
+    updateWeatherLocationSettings();
+    await refreshWeatherAfterLocationChange();
+}));
+document.getElementById("weatherLocationForm").addEventListener("submit",async event=>{
+    event.preventDefault();
+    const input=document.getElementById("weatherLocationSearch");
+    const query=input.value.trim();
+    if(!query){
+        updateWeatherLocationSettings("Enter a suburb, town or city first.");
+        return;
+    }
+    const button=document.getElementById("saveWeatherLocation");
+    button.disabled=true;
+    updateWeatherLocationSettings(`Looking for ${query}…`);
+    try{
+        const location=await resolveManualWeatherLocation(query);
+        weatherLocationPreference={mode:"manual",...location};
+        saveWeatherLocationPreference();
+        updateWeatherLocationSettings(`Using ${location.name}. Refreshing weather…`);
+        await refreshWeatherAfterLocationChange();
+        updateWeatherLocationSettings();
+    }catch(error){
+        updateWeatherLocationSettings("That location could not be found. Try including your state or country.");
+    }finally{
+        button.disabled=false;
+    }
+});
+updateWeatherLocationSettings();
 loadWeather();
 setInterval(()=>loadWeather({background:true}),weatherRefreshInterval);
 setInterval(()=>{

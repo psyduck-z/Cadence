@@ -58,6 +58,10 @@ function sendUpdaterStatus(status,details={}){
 }
 
 async function checkForCadenceUpdate(manual=false){
+    if(updateDownloaded){
+        sendUpdaterStatus("downloaded");
+        return;
+    }
     if(updateCheckInProgress){
         return;
     }
@@ -810,7 +814,7 @@ app.whenReady().then(()=>{
     ipcMain.on("check-for-updates",()=>checkForCadenceUpdate(true));
 
     ipcMain.on("download-update",async()=>{
-        if(!app.isPackaged) return;
+        if(!app.isPackaged || updateDownloaded || updaterState.status==="downloading") return;
         try{
             sendUpdaterStatus("downloading",{percent:0});
             await autoUpdater.downloadUpdate();

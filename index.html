@@ -565,6 +565,13 @@ Playlist name
 <span id="weatherUpdatedAt" class="weather-update-status" aria-live="polite">Not updated yet · Auto-refreshes every 5 min</span>
 </div>
 
+<section class="weather-source-card" aria-label="Weather data sources">
+<div class="weather-source-heading"><div><p class="schedule-eyebrow">Reading nearby</p><h3 id="weatherObservationStation">Finding a weather station…</h3></div><span id="weatherSourceBadge" data-source="loading">Checking</span></div>
+<p id="weatherObservationDistance">Looking for the nearest fresh BOM observation.</p>
+<div class="weather-source-row"><strong>Live fields</strong><span id="weatherObservationCoverage">Checking coverage…</span></div>
+<div class="weather-source-row"><strong>Forecast fields</strong><span id="weatherForecastSource">Open-Meteo forecast</span></div>
+</section>
+
 <section id="sunJourneyCard" class="sun-journey-card" aria-label="Today's sun journey">
 <div class="weather-section-heading">
 <div><p class="schedule-eyebrow">Today’s light</p><h3>Sun journey</h3></div>
@@ -599,7 +606,7 @@ Playlist name
 <article><i>💨</i><span>Wind</span><strong id="weatherWind">-- km/h</strong><small id="weatherWindDetail">Direction unavailable</small></article>
 <article><i>◉</i><span>Pressure</span><strong id="weatherPressure">-- hPa</strong></article>
 <article><i>◌</i><span>Visibility</span><strong id="weatherVisibility">-- km</strong></article>
-<article><i>☂</i><span>Rain chance</span><strong id="weatherRainChance">--%</strong></article>
+<article><i>☂</i><span>Rain chance</span><strong id="weatherRainChance">--%</strong><small>Forecast probability</small></article>
 <article><i>☀</i><span>UV index</span><strong id="weatherUv">--</strong></article>
 </section>
 
@@ -702,6 +709,29 @@ Settings
 <input id="alwaysOnTopToggle" type="checkbox">
 </label>
 
+</section>
+
+<section class="location-settings-card">
+<div class="appearance-heading">
+<div>
+<p class="schedule-eyebrow">Weather location</p>
+<h3>Where should Cadence watch?</h3>
+</div>
+<span id="weatherLocationMode">Automatic</span>
+</div>
+<label class="weather-location-choice">
+<input id="automaticWeatherLocation" name="weatherLocationMode" type="radio" value="auto" checked>
+<span><strong>Automatic location</strong><small>Uses your device or internet connection. It can be approximate and may show a nearby suburb.</small></span>
+</label>
+<label class="weather-location-choice">
+<input id="manualWeatherLocation" name="weatherLocationMode" type="radio" value="manual">
+<span><strong>Set my location</strong><small>Enter your suburb, town or city for more relevant weather.</small></span>
+</label>
+<form id="weatherLocationForm" class="weather-location-form">
+<input id="weatherLocationSearch" type="text" maxlength="100" autocomplete="off" placeholder="Suburb, town or city" aria-label="Weather location">
+<button id="saveWeatherLocation" type="submit">Use location</button>
+</form>
+<p id="weatherLocationSettingStatus" class="weather-location-setting-status" aria-live="polite">Cadence is locating you automatically.</p>
 </section>
 
 

@@ -18,8 +18,16 @@ const releaseNotesContent=document.getElementById("releaseNotesContent");
 const latestVersionLabel=document.getElementById("latestVersionLabel");
 const updateAvailableModal=document.getElementById("updateAvailableModal");
 const updateReadyModal=document.getElementById("updateReadyModal");
-let dismissedVersion="";
+const updateDeferralStorageKey="cadence-update-deferrals";
+let updateDeferrals={download:"",restart:""};
+try{
+    updateDeferrals={...updateDeferrals,...JSON.parse(localStorage.getItem(updateDeferralStorageKey) || "{}")};
+}catch(error){}
 let currentState={status:"idle"};
+
+function saveUpdateDeferrals(){
+    localStorage.setItem(updateDeferralStorageKey,JSON.stringify(updateDeferrals));
+}
 
 const statePresentation={
     idle:{icon:"✦",label:"Ready when you are"},
@@ -125,11 +133,13 @@ function renderState(state){
     if(state.status==="development") updateStatus.textContent=state.message;
     if(state.status==="checking") updateStatus.textContent="Looking for a newer version of Cadence…";
     if(state.status==="current") updateStatus.textContent=state.message || "You have the newest version of Cadence.";
-    if(state.status==="available") updateStatus.textContent=dismissedVersion===state.availableVersion
+    if(state.status==="available") updateStatus.textContent=updateDeferrals.download===state.availableVersion
         ? "Saved for later — download whenever you’re ready."
         : `Cadence ${state.availableVersion} is ready when you are.`;
     if(state.status==="downloading") updateStatus.textContent="Downloading safely in the background…";
-    if(state.status==="downloaded") updateStatus.textContent="The update is downloaded and ready to install.";
+    if(state.status==="downloaded") updateStatus.textContent=updateDeferrals.restart===state.availableVersion
+        ? "Ready when you are — restart and install from this tab."
+        : "The update is downloaded and ready to install.";
     if(state.status==="error") updateStatus.textContent=state.message || "Cadence couldn't check for updates.";
 
     if(state.status==="downloading") showProgress(state.percent);
@@ -144,13 +154,22 @@ function renderState(state){
 updaterIpc.on("updater-status",(event,state)=>{
     renderState(state);
     if(state.status==="available"){
+        if(updateDeferrals.download && updateDeferrals.download!==state.availableVersion){
+            updateDeferrals.download="";
+            saveUpdateDeferrals();
+        }
         document.getElementById("updateAvailableMessage").textContent=
             `Cadence ${state.availableVersion} is available. Would you like to download it?`;
         document.getElementById("updateCurrentVersion").textContent=`v${state.version}`;
         document.getElementById("updateNewVersion").textContent=`v${state.availableVersion}`;
-        if(dismissedVersion!==state.availableVersion) updateAvailableModal.classList.remove("hidden");
+        if(updateDeferrals.download!==state.availableVersion) updateAvailableModal.classList.remove("hidden");
     }
-    if(state.status==="downloaded") updateReadyModal.classList.remove("hidden");
+    if(state.status==="downloaded"){
+        updateDeferrals.download="";
+        if(updateDeferrals.restart && updateDeferrals.restart!==state.availableVersion) updateDeferrals.restart="";
+        saveUpdateDeferrals();
+        if(updateDeferrals.restart!==state.availableVersion) updateReadyModal.classList.remove("hidden");
+    }
 });
 
 updateAction.addEventListener("click",()=>{
@@ -162,21 +181,32 @@ updateAction.addEventListener("click",()=>{
         updateReadyModal.classList.remove("hidden");
         return;
     }
-    dismissedVersion="";
+    updateDeferrals.download="";
+    saveUpdateDeferrals();
     updaterIpc.send("check-for-updates");
 });
 
 document.getElementById("laterUpdate").addEventListener("click",()=>{
-    dismissedVersion=document.getElementById("updateNewVersion").textContent.replace(/^v/,"");
+    updateDeferrals.download=currentState.availableVersion || document.getElementById("updateNewVersion").textContent.replace(/^v/,"");
+    saveUpdateDeferrals();
     closeUpdateModal(updateAvailableModal);
     updateStatus.textContent="Saved for later — download whenever you’re ready.";
 });
 document.getElementById("downloadUpdate").addEventListener("click",()=>{
+    updateDeferrals.download="";
+    saveUpdateDeferrals();
     closeUpdateModal(updateAvailableModal);
     updaterIpc.send("download-update");
 });
-document.getElementById("laterRestart").addEventListener("click",()=>closeUpdateModal(updateReadyModal));
+document.getElementById("laterRestart").addEventListener("click",()=>{
+    updateDeferrals.restart=currentState.availableVersion || "downloaded";
+    saveUpdateDeferrals();
+    closeUpdateModal(updateReadyModal);
+    updateStatus.textContent="Ready when you are — restart and install from this tab.";
+});
 document.getElementById("installUpdate").addEventListener("click",()=>{
+    updateDeferrals.restart="";
+    saveUpdateDeferrals();
     document.getElementById("installUpdate").disabled=true;
     updaterIpc.send("install-update");
 });
